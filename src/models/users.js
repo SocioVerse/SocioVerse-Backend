@@ -9,7 +9,7 @@ const user = new Schema({
     email: {
         type: String,
         required: true,
-        trim: true
+        trim: true 
     },
     phone_number: {
         type: String,
@@ -57,7 +57,17 @@ const user = new Schema({
         trim: true
 
     },
-
+    face_image_dataset: [
+        {
+        type: String,
+        required: true,
+            trim: true,
+        
+         default:[],
+        }
+    ],
+    
+   
 
 
 
