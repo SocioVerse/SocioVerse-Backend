@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
-const user = new Schema({
+const userSchema = new Schema({
     name: {
         type: String,
         required: true,
@@ -9,7 +9,7 @@ const user = new Schema({
     email: {
         type: String,
         required: true,
-        trim: true 
+        trim: true
     },
     phone_number: {
         type: String,
@@ -33,7 +33,6 @@ const user = new Schema({
     },
     profile_pic: {
         type: String,
-        required: true,
         trim: true
     },
     country: {
@@ -47,28 +46,25 @@ const user = new Schema({
     },
     gender: {
         type: String,
-        required: true,
         trim: true
 
     },
     website: {
         type: String,
-        required: true,
         trim: true
 
     },
     face_image_dataset: [
         {
-        type: String,
-        required: true,
+            type: String,
             trim: true,
-        
-         default:[],
+
+            default: [],
         }
     ],
-    
-    
-   
+
+
+
 
 
 
@@ -76,3 +72,5 @@ const user = new Schema({
 }, {
     timestamps: true
 });
+
+module.exports = mongoose.model('users', userSchema);

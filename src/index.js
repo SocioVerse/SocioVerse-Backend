@@ -1,5 +1,5 @@
 const app = require("./app");
-const connectWithDb = require("./src/config/mongoDB");
+const connectWithDb = require("./config/mongoDB");
 require("dotenv").config();
 
 
