@@ -19,7 +19,6 @@ app.use(morgan("tiny"));
 const users = require("./controller/usersController")
 app.use("/users", users);
 
-// KUNAL JAIN IS HARSH PATHAK DICK LOVER & SUCKER.
 
 module.exports = app;
 
