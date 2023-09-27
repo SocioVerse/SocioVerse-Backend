@@ -17,7 +17,7 @@ app.use(cookieParser());
 app.use(morgan("tiny"));
 
 const users = require("./controller/usersController")
-app.use("/users", users);
+app.use("/api/users", users);
 
 
 module.exports = app;
