@@ -20,6 +20,5 @@ const users = require("./controller/usersController")
 app.use("/api/users", users);
 
 
-
 module.exports = app;
 
