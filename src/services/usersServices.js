@@ -41,12 +41,12 @@ module.exports.signup = BigPromise(async (req, res) => {
   }
   if (password == null || password == undefined || password.length < 6) {
     // res.status(400).json({ message: "Invalid Password" })
-    return ErrorHandler(res, 500, "Invalid Password");
+    return ErrorHandler(res, 400, "Invalid Password");
   }
   const userExist = await Users.findOne({ email });
   if (userExist) {
     // res.status(400).json({ message: "Email already exists" })
-    return ErrorHandler(res, 500, "Email already exists");
+    return ErrorHandler(res, 400, "Email already exists");
   }
   try {
     const newUser = new Users({
