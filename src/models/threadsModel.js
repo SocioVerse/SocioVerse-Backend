@@ -4,7 +4,7 @@ const threadsSchema = new Schema(
     {
         user_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "threadsSchema",
+            ref: "userSchema",
             required: true,
         },
         content: {
@@ -22,13 +22,13 @@ const threadsSchema = new Schema(
         likes: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: "threadsSchema",
+                ref: "userSchema",
             }
         ],
         repost_by: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: "threadsSchema",
+                ref: "userSchema",
             }
         ],
         is_private: {
