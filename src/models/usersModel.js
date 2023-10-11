@@ -61,18 +61,6 @@ const userSchema = new Schema(
         default: [],
       },
     ],
-    followers: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "userSchema",
-      },
-    ],
-    following: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "userSchema",
-      },
-    ],
     socioThread_bio: {
       type: String,
       trim: true,

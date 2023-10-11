@@ -19,18 +19,6 @@ const threadsSchema = new Schema(
                 default: [],
             }
         ],
-        likes: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "userSchema",
-            }
-        ],
-        repost_by: [
-            {
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "userSchema",
-            }
-        ],
         is_private: {
             type: boolean,
             default: false,
