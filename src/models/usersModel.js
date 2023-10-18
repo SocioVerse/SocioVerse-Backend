@@ -64,13 +64,13 @@ const userSchema = new Schema(
     followers: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "userSchema",
+        ref: "users",
       },
     ],
     following: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "userSchema",
+        ref: "users",
       },
     ],
     socioThread_bio: {
