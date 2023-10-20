@@ -14,11 +14,10 @@ const auth = bigPromise(async (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const { _id, phone_number } = await JwtService.verify(token);
-
+    const { _id, phone_number } = JwtService.verify(token);
     // set id & phone_number
     req.user = {
-      _id: mongoose.Types.ObjectId(_id),
+      _id,
       phone_number,
     };
 
