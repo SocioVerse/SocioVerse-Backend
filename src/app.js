@@ -16,8 +16,11 @@ app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("tiny"));
 
-const users = require("./controller/usersController")
+const refresh = require("./controllers/refreshController");
+const users = require("./controllers/usersController");
+
 app.use("/api/users", users);
+app.use("/api/token", refresh)
 
 
 module.exports = app;

@@ -1,28 +1,19 @@
 const Users = require("../models/usersModel");
 const { hashPassword, verifyPassword } = require("../routes/encryption");
-const BigPromise = require("../middleware/bigPromise");
-const jwt = require("../routes/jwtService");
+const BigPromise = require("../middlewares/bigPromise");
+const jwt = require("../utils/jwtService");
+const imgService = require("../routes/imageServices")
 const {
   ControllerResponse,
   ErrorHandler,
-} = require("../helper/customResponse");
+} = require("../helpers/customResponse");
 const RefreshToken = require("../models/refreshToken");
 
 function checkEmail(email) {
-  if (email == null || email == undefined) {
-    return false;
-  }
-  if (email.length < 3) {
-    return false;
-  }
-  if (email.indexOf("@") == -1) {
-    return false;
-  }
-  if (email.indexOf(".") == -1) {
-    return false;
-  }
-  return true;
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailPattern.test(email);
 }
+
 module.exports.signup = BigPromise(async (req, res) => {
   const {
     email,
@@ -46,7 +37,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     return ErrorHandler(res, 400, "Email already exists");
   }
   try {
-    const newUser = new Users({
+    const user = await Users.create({
       email,
       password: await hashPassword(password),
       name,
@@ -56,11 +47,42 @@ module.exports.signup = BigPromise(async (req, res) => {
       country,
       dob: Date.parse(dob),
     });
-    const savedUser = await newUser.save();
-    const access_token = jwt.sign({ id: savedUser._id, phone_number });
+
+    if (Array.isArray(req.files.face_image_dataset)) {
+      for (let i = 0; i < 4; i++) {
+
+        const imageLink = await imgService.getDisplayUrl(req.files.face_image_dataset[i], `${user.id}-${i + 1}`);
+        if (imageLink != "Error")
+          user.face_image_dataset.push(imageLink);
+        else {
+          user.deleteOne();
+          return ErrorHandler(res, 500, "Upload Correct Format");
+        }
+      }
+    }
+    else {
+      const imageLink = await imgService.getDisplayUrl(req.files.face_image_dataset, `${user.id}-1`);
+      if (imageLink != "Error")
+        user.face_image_dataset.push(imageLink);
+      else {
+        user.deleteOne();
+        return ErrorHandler(res, 500, "Upload Correct Format");
+      }
+    }
+    if (req.files.profile_pic) {
+      const imageLink = await imgService.getDisplayUrl(req.files.profile_pic, `${user.id}-profile`);
+      if (imageLink != "Error")
+        user.profile_pic = imageLink;
+      else {
+        user.deleteOne();
+        return ErrorHandler(res, 500, "Upload Correct Format");
+      }
+    }
+    user.save();
+    const access_token = jwt.sign({ _id: user._id, phone_number });
     const refresh_token = jwt.sign(
       {
-        id: savedUser._id,
+        _id: user._id,
         phone_number,
       },
       "30d",
@@ -72,10 +94,62 @@ module.exports.signup = BigPromise(async (req, res) => {
 
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
-      ...savedUser._doc,
+      ...user._doc,
       refresh_token,
       access_token,
     });
+
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.login = BigPromise(async (req, res) => {
+  const { usernameOrEmail, password } = req.body;
+
+  if (!usernameOrEmail || !password) {
+    return ErrorHandler(res, 400, "Username/Email and password are required");
+  }
+  try {
+    const user = await Users.findOne({
+      $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
+    });
+
+    if (!user) {
+
+      const newUser = new Users({
+        email,
+        password: await hashPassword(password),
+        name,
+        phone_number,
+        username,
+        occupation,
+        country,
+        dob: Date.parse(dob),
+      });
+
+      const savedUser = await newUser.save();
+      const access_token = jwt.sign({ id: savedUser._id, phone_number });
+      const refresh_token = jwt.sign(
+        {
+          id: savedUser._id,
+          phone_number,
+        },
+        "30d",
+        process.env.REFRESH_TOKEN_KEY
+      );
+
+      // store refresh token in database
+      await RefreshToken.create({ token: refresh_token });
+
+      return ControllerResponse(res, 200, {
+        message: "Signup Successfull!",
+        ...savedUser._doc,
+        refresh_token,
+        access_token,
+      });
+    }
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
