@@ -162,3 +162,16 @@ module.exports.login = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+
+module.exports.verifyEmailExists = BigPromise(async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await Users.findOne({ email: email });
+    return ControllerResponse(res, 200, {
+      email_exists: user ? true : false,
+    });
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
