@@ -1,12 +1,12 @@
 const Users = require("../models/usersModel");
 const { hashPassword, verifyPassword } = require("../routes/encryption");
-const BigPromise = require("../middleware/bigPromise");
-const jwt = require("../routes/jwtService");
+const BigPromise = require("../middlewares/bigPromise");
+const jwt = require("../utils/jwtService");
 const imgService = require("../routes/imageServices")
 const {
   ControllerResponse,
   ErrorHandler,
-} = require("../helper/customResponse");
+} = require("../helpers/customResponse");
 const RefreshToken = require("../models/refreshToken");
 
 function checkEmail(email) {
@@ -47,6 +47,7 @@ module.exports.signup = BigPromise(async (req, res) => {
       country,
       dob: Date.parse(dob),
     });
+
     if (Array.isArray(req.files.face_image_dataset)) {
       for (let i = 0; i < 4; i++) {
 
@@ -68,11 +69,20 @@ module.exports.signup = BigPromise(async (req, res) => {
         return ErrorHandler(res, 500, "Upload Correct Format");
       }
     }
+    if (req.files.profile_pic) {
+      const imageLink = await imgService.getDisplayUrl(req.files.profile_pic, `${user.id}-profile`);
+      if (imageLink != "Error")
+        user.profile_pic = imageLink;
+      else {
+        user.deleteOne();
+        return ErrorHandler(res, 500, "Upload Correct Format");
+      }
+    }
     user.save();
-    const access_token = jwt.sign({ id: user._id, phone_number });
+    const access_token = jwt.sign({ _id: user._id, phone_number });
     const refresh_token = jwt.sign(
       {
-        id: user._id,
+        _id: user._id,
         phone_number,
       },
       "30d",
