@@ -165,7 +165,7 @@ module.exports.login = BigPromise(async (req, res) => {
 
 module.exports.verifyEmailExists = BigPromise(async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.query;
     const user = await Users.findOne({ email: email });
     return ControllerResponse(res, 200, {
       email_exists: user ? true : false,
