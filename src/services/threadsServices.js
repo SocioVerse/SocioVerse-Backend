@@ -31,12 +31,11 @@ module.exports.createThread = BigPromise(async (req, res) => {
 module.exports.readThread = BigPromise(async (req, res) => {
   try {
     const thread = await Thread.findById(req.query.threadId);
-    
     if (!thread) {
       return ErrorHandler(res, 404, "Thread not found");
     }
 
-    ControllerResponse(res, 200, "Thread retrieved successfully", thread);
+    ControllerResponse(res, 200, thread);
     
   } catch (err) {
     console.log(err);
@@ -77,12 +76,83 @@ module.exports.updateThread = BigPromise(async (req, res) => {
 module.exports.deleteThread = BigPromise(async (req, res) => {
   try {
     const thread = await Thread.findByIdAndRemove(req.query.threadId);
- 
-    if(!thread){
-      return ErrorHandler(res, 404, "Thread not found");
+    if(!thread)
+    {
+      return ErrorHandler(res,404,"Thread does not exist");
     }
     ControllerResponse(res, 200, "Thread Deleted Successfully");
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
 
+module.exports.createFollowRequest = BigPromise(async (req, res) => {
+  try {
+    const requestingUserId = req.user._id; 
+    const { targetUserId } = req.query; 
+
+    const existingRequest = await Follow.findOne({
+      followed_by: requestingUserId,
+      followed_to: targetUserId,
+    });
+
+    if (existingRequest) {
+      return ErrorHandler(res,404,"Follow Request Already Exists")
+    }
+
+    // Create a new follow request
+    const followRequest = new Follow({
+      followed_by: requestingUserId,
+      followed_to: targetUserId,
+      is_confirmed: false, 
+    });
+
+    await followRequest.save();
+    ControllerResponse(res,200,"Follow Request Sent Succesfully");
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res,500,"Internal Server Error");
+  }
+});
+
+module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
+  try {
+    const requestingUserId = req.user._id; 
+    const { targetUserId } = req.query;
+
+    const existingRequest = await Follow.findOne({
+      followed_by: requestingUserId,
+      followed_to: targetUserId,
+    });
+
+    if (existingRequest) {
+      existingRequest.is_confirmed = true;
+    }
+    await existingRequest.save();
+    ControllerResponse(res,200,"Follow Request Accepted");
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res,500,"Internal Server Error");
+  }
+});
+
+module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
+  try {
+    const requestingUserId = req.user._id;
+    const { targetUserId } = req.query;
+
+    const existingRequest = await Follow.findOne({
+      followed_by: requestingUserId,
+      followed_to: targetUserId,
+    });
+
+    if (existingRequest) {
+      await existingRequest.remove();
+      ControllerResponse(res, 200, "Follow Request Deleted Successfully");
+    } else {
+      ErrorHandler(res, 404, "Follow Request Not Found");
+    }
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -91,36 +161,26 @@ module.exports.deleteThread = BigPromise(async (req, res) => {
 
 module.exports.fetchFollowers = BigPromise(async (req, res) => {
   try {
-    const userId = req.query.userId;
+    const {userId} = req.query; 
 
     const followers = await Follow.find({ followed_to: userId, is_confirmed: true });
 
-    if (followers) {
-      ControllerResponse(res, 200, followers);
-    } else {
-
-      ControllerResponse(res, 404, 'No followers found');
-    }
-  } catch (error) {
-    console.error(error);
+    ControllerResponse(res, 200, followers);
+  } catch (err) {
+    console.error(err);
     ErrorHandler(res, 500, 'Internal Server Error');
   }
 });
 
 module.exports.fetchFollowing = BigPromise(async (req, res) => {
   try {
-    const userId = req.query.userId;
+    const {userId} = req.query;
 
     const following = await Follow.find({ followed_by: userId, is_confirmed: true });
 
-    if (following) {
-      ControllerResponse(res, 200, following);
-    } else {
-
-      ControllerResponse(res, 404, 'No following found');
-    }
-  } catch (error) {
-    console.error(error);
+    ControllerResponse(res, 200, following);
+  } catch (err) {
+    console.error(err);
     ErrorHandler(res, 500, 'Internal Server Error');
   }
 });
