@@ -118,18 +118,21 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
 
 module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
   try {
-    const requestingUserId = req.user._id; 
+    const requestingUserId = req.user._id;
     const { targetUserId } = req.query;
 
-    const existingRequest = await Follow.findOne({
-      followed_by: requestingUserId,
-      followed_to: targetUserId,
+    const Request = await Follow.findOne({
+      followed_by: targetUserId,
+      followed_to: requestingUserId,
     });
 
-    if (existingRequest) {
-      existingRequest.is_confirmed = true;
+    if (Request) {
+      Request.is_confirmed = true;
     }
-    await existingRequest.save();
+    else{
+      return Error(res,404,"Follow Request Not Found");
+    }
+    await Request.save();
     ControllerResponse(res,200,"Follow Request Accepted");
   } catch (err) {
     console.error(err);
@@ -143,12 +146,15 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
     const { targetUserId } = req.query;
 
     const existingRequest = await Follow.findOne({
-      followed_by: requestingUserId,
-      followed_to: targetUserId,
+      followed_by: targetUserId,
+      followed_to: requestingUserId,
     });
 
     if (existingRequest) {
-      await existingRequest.remove();
+      await existingRequest.deleteOne({
+        followed_by: targetUserId,
+        followed_to: requestingUserId,
+      });
       ControllerResponse(res, 200, "Follow Request Deleted Successfully");
     } else {
       ErrorHandler(res, 404, "Follow Request Not Found");
@@ -163,8 +169,8 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
   try {
     const {userId} = req.query; 
 
-    const followers = await Follow.find({ followed_to: userId, is_confirmed: true });
-
+    const followers = await Follow.find({ followed_to: userId, is_confirmed: true }); 
+    
     ControllerResponse(res, 200, followers);
   } catch (err) {
     console.error(err);
