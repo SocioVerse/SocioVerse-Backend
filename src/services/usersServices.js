@@ -24,6 +24,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     occupation,
     country,
     dob,
+    profile_pic,
   } = req.body;
   console.log(req.body);
   if (checkEmail(email) == false) {
@@ -46,42 +47,8 @@ module.exports.signup = BigPromise(async (req, res) => {
       occupation,
       country,
       dob: Date.parse(dob),
+      profile_pic,
     });
-
-    if (Array.isArray(req.files.face_image_dataset)) {
-      for (let i = 0; i < 4; i++) {
-        const imageLink = await imgService.getDisplayUrl(
-          req.files.face_image_dataset[i],
-          `${user.id}-${i + 1}`
-        );
-        if (imageLink != "Error") user.face_image_dataset.push(imageLink);
-        else {
-          user.deleteOne();
-          return ErrorHandler(res, 500, "Upload Correct Format");
-        }
-      }
-    } else {
-      const imageLink = await imgService.getDisplayUrl(
-        req.files.face_image_dataset,
-        `${user.id}-1`
-      );
-      if (imageLink != "Error") user.face_image_dataset.push(imageLink);
-      else {
-        user.deleteOne();
-        return ErrorHandler(res, 500, "Upload Correct Format");
-      }
-    }
-    if (req.files.profile_pic) {
-      const imageLink = await imgService.getDisplayUrl(
-        req.files.profile_pic,
-        `${user.id}-profile`
-      );
-      if (imageLink != "Error") user.profile_pic = imageLink;
-      else {
-        user.deleteOne();
-        return ErrorHandler(res, 500, "Upload Correct Format");
-      }
-    }
     user.save();
     const access_token = jwt.sign({ _id: user._id, phone_number });
     const refresh_token = jwt.sign(
@@ -155,6 +122,7 @@ module.exports.login = BigPromise(async (req, res) => {
         occupation: user.occupation,
         country: user.country,
         dob: user.dob,
+        profile_pic: user.profile_pic,
       },
     });
   } catch (err) {
