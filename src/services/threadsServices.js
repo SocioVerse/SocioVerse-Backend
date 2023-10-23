@@ -29,7 +29,7 @@ module.exports.createThread = BigPromise(async (req, res) => {
 
 module.exports.updateThread = BigPromise(async (req, res) => {
   try {
-    const threadId = req.params.threadId;
+    const { threadId } = req.query;
     const { content, images, is_private, isBase } = req.body;
     const thread = await Thread.findById(threadId);
     if (!thread) {
