@@ -37,6 +37,10 @@ module.exports.signup = BigPromise(async (req, res) => {
   if (userExist) {
     return ErrorHandler(res, 400, "Email already exists");
   }
+  const usernameExists  = await Users.findOne({ username });
+  if (usernameExists) {
+    return ErrorHandler(res, 400, "Username already exists");
+  }
   try {
     const user = await Users.create({
       email,
@@ -137,6 +141,19 @@ module.exports.verifyEmailExists = BigPromise(async (req, res) => {
     const user = await Users.findOne({ email: email });
     return ControllerResponse(res, 200, {
       email_exists: user ? true : false,
+    });
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.verifyUsernameExists = BigPromise(async (req, res) => {
+  try {
+    const { username } = req.query;
+    const user = await Users.findOne({ username: username });
+    return ControllerResponse(res, 200, {
+      username_exists: user ? true : false,
     });
   } catch (err) {
     console.log(err);
