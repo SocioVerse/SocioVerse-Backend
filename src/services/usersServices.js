@@ -115,19 +115,9 @@ module.exports.login = BigPromise(async (req, res) => {
 
     return ControllerResponse(res, 200, {
       message: "Login Successful!",
-      access_token,
+      ...user._doc,
       refresh_token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        phone_number: user.phone_number,
-        username: user.username,
-        occupation: user.occupation,
-        country: user.country,
-        dob: user.dob,
-        profile_pic: user.profile_pic,
-      },
+      access_token
     });
   } catch (err) {
     console.log(err);
