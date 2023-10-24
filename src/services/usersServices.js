@@ -37,7 +37,7 @@ module.exports.signup = BigPromise(async (req, res) => {
   if (userExist) {
     return ErrorHandler(res, 400, "Email already exists");
   }
-  const usernameExists  = await Users.findOne({ username });
+  const usernameExists = await Users.findOne({ username });
   if (usernameExists) {
     return ErrorHandler(res, 400, "Username already exists");
   }
@@ -91,12 +91,12 @@ module.exports.login = BigPromise(async (req, res) => {
     });
 
     if (!user) {
-      return ErrorHandler(res, 401, "Invalid credentials");
+      return ErrorHandler(res, 403, "Invalid credentials");
     }
 
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      return ErrorHandler(res, 401, "Invalid credentials");
+      return ErrorHandler(res, 403, "Invalid credentials");
     }
     const access_token = jwt.sign({
       _id: user._id,
