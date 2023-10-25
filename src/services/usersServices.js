@@ -54,11 +54,16 @@ module.exports.signup = BigPromise(async (req, res) => {
       profile_pic,
     });
     user.save();
-    const access_token = jwt.sign({ _id: user._id, phone_number });
+    const access_token = jwt.sign({
+      _id: user._id,
+      phone_number,
+      email });
     const refresh_token = jwt.sign(
       {
         _id: user._id,
         phone_number,
+        email
+
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
@@ -102,13 +107,15 @@ module.exports.login = BigPromise(async (req, res) => {
     }
     const access_token = jwt.sign({
       _id: user._id,
-      phone_number: user.phone_number,
+      phone_number,
+      email
     });
 
     const refresh_token = jwt.sign(
       {
         _id: user._id,
-        phone_number: user.phone_number,
+        phone_number,
+        email
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
