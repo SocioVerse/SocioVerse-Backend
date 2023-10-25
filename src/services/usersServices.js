@@ -107,15 +107,15 @@ module.exports.login = BigPromise(async (req, res) => {
     }
     const access_token = jwt.sign({
       _id: user._id,
-      phone_number,
-      email
+      phone_number:user.phone_number,
+      email:user.email
     });
 
     const refresh_token = jwt.sign(
       {
         _id: user._id,
-        phone_number,
-        email
+        phone_number: user.phone_number,
+        email: user.email
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
