@@ -23,7 +23,11 @@ module.exports.createThread = BigPromise(async (req, res) => {
       isBase: isBase || true,
     });
     await newThread.save();
-    ControllerResponse(res, 200, "Thread created successfully");
+    ControllerResponse(res, 200, {
+      message: "Thread created successfully",
+      thread: newThread,
+
+    });
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error");
   }
