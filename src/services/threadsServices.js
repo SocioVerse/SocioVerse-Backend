@@ -6,23 +6,37 @@ const BigPromise = require("../middlewares/bigPromise");
 const Users = require("../models/usersModel");
 const Thread = require("../models/threadsModel");
 const Follow = require("../models/follows");
+const Comments = require("../models/commentModel");
 
 module.exports.createThread = BigPromise(async (req, res) => {
   console.log(req.user);
   try {
-    const user = await Users.findById(req.user._id);
-    if (!user) {
-      return ErrorHandler(res, 403, "Seller not found");
-    }
-    const { content, images, is_private, isBase } = req.body;
+    const { content, images, is_private, isBase, comments } = req.body;
     const newThread = new Thread({
-      user_id: user._id,
+      user_id: req.user._id,
       content,
       images,
       is_private: is_private || false,
       isBase: isBase || true,
     });
     await newThread.save();
+    for (let i = 0; i < comments.length; i++) {
+      const newComment = new Thread({
+        user_id: req.user._id,
+        content: comments[i].content,
+        images: comments[i].images,
+        is_private: newThread.is_private,
+        isBase: false,
+      });
+      await newComment.save();
+      new Comments(
+        {
+          linked_thread: newComment._id,
+          base_thread: newThread._id,
+        }
+      ).save();
+
+    }
     ControllerResponse(res, 200, {
       message: "Thread created successfully",
       thread: newThread,
