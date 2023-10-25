@@ -67,6 +67,8 @@ module.exports.signup = BigPromise(async (req, res) => {
     // store refresh token in database
     await RefreshToken.create({ token: refresh_token });
 
+
+    delete user._doc.password;
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
       ...user._doc,
@@ -113,6 +115,7 @@ module.exports.login = BigPromise(async (req, res) => {
     );
     await RefreshToken.create({ token: refresh_token });
 
+    delete user._doc.password;
     return ControllerResponse(res, 200, {
       message: "Login Successful!",
       ...user._doc,
@@ -145,6 +148,20 @@ module.exports.verifyUsernameExists = BigPromise(async (req, res) => {
     return ControllerResponse(res, 200, {
       username_exists: user ? true : false,
     });
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.fetchUserDetails = BigPromise(async (req, res) => {
+  try {
+    const user = await Users.findById(req.user._id);
+    delete user._doc.password;
+    return ControllerResponse(res, 200, {
+      ...user._doc,
+    });
+
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
