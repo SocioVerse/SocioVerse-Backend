@@ -5,11 +5,12 @@ const {
 const BigPromise = require("../middlewares/bigPromise");
 const Users = require("../models/usersModel");
 const Thread = require("../models/threadsModel");
-const Follow =require("../models/follows");
+const Follow = require("../models/follows");
 
 module.exports.createThread = BigPromise(async (req, res) => {
+  console.log(req.user);
   try {
-    const user = await Users.findById(req.user);
+    const user = await Users.findById(req.user._id);
     if (!user) {
       return ErrorHandler(res, 403, "Seller not found");
     }
@@ -36,7 +37,7 @@ module.exports.readThread = BigPromise(async (req, res) => {
     }
 
     ControllerResponse(res, 200, thread);
-    
+
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -76,9 +77,8 @@ module.exports.updateThread = BigPromise(async (req, res) => {
 module.exports.deleteThread = BigPromise(async (req, res) => {
   try {
     const thread = await Thread.findByIdAndRemove(req.query.threadId);
-    if(!thread)
-    {
-      return ErrorHandler(res,404,"Thread does not exist");
+    if (!thread) {
+      return ErrorHandler(res, 404, "Thread does not exist");
     }
     ControllerResponse(res, 200, "Thread Deleted Successfully");
   } catch (err) {
@@ -89,8 +89,8 @@ module.exports.deleteThread = BigPromise(async (req, res) => {
 
 module.exports.createFollowRequest = BigPromise(async (req, res) => {
   try {
-    const requestingUserId = req.user._id; 
-    const { targetUserId } = req.query; 
+    const requestingUserId = req.user._id;
+    const { targetUserId } = req.query;
 
     const existingRequest = await Follow.findOne({
       followed_by: requestingUserId,
@@ -98,21 +98,21 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
     });
 
     if (existingRequest) {
-      return ErrorHandler(res,404,"Follow Request Already Exists")
+      return ErrorHandler(res, 404, "Follow Request Already Exists")
     }
 
     // Create a new follow request
     const followRequest = new Follow({
       followed_by: requestingUserId,
       followed_to: targetUserId,
-      is_confirmed: false, 
+      is_confirmed: false,
     });
 
     await followRequest.save();
-    ControllerResponse(res,200,"Follow Request Sent Succesfully");
+    ControllerResponse(res, 200, "Follow Request Sent Succesfully");
   } catch (err) {
     console.error(err);
-    ErrorHandler(res,500,"Internal Server Error");
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
@@ -129,14 +129,14 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     if (Request) {
       Request.is_confirmed = true;
     }
-    else{
-      return Error(res,404,"Follow Request Not Found");
+    else {
+      return Error(res, 404, "Follow Request Not Found");
     }
     await Request.save();
-    ControllerResponse(res,200,"Follow Request Accepted");
+    ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {
     console.error(err);
-    ErrorHandler(res,500,"Internal Server Error");
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
@@ -167,10 +167,10 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
 
 module.exports.fetchFollowers = BigPromise(async (req, res) => {
   try {
-    const {userId} = req.query; 
+    const { userId } = req.query;
 
-    const followers = await Follow.find({ followed_to: userId, is_confirmed: true }); 
-    
+    const followers = await Follow.find({ followed_to: userId, is_confirmed: true });
+
     ControllerResponse(res, 200, followers);
   } catch (err) {
     console.error(err);
@@ -180,7 +180,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
 
 module.exports.fetchFollowing = BigPromise(async (req, res) => {
   try {
-    const {userId} = req.query;
+    const { userId } = req.query;
 
     const following = await Follow.find({ followed_by: userId, is_confirmed: true });
 
