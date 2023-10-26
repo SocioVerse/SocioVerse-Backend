@@ -19,6 +19,10 @@ const threadsSchema = new Schema(
         default: [],
       },
     ],
+    like_count: {
+      type: Number,
+      default: 0,
+    },
     is_private: {
       type: Boolean,
       default: false,

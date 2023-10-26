@@ -36,6 +36,10 @@ module.exports.signup = BigPromise(async (req, res) => {
   if (userExist) {
     return ErrorHandler(res, 400, "Email already exists");
   }
+  const usernameExists = await Users.findOne({ username });
+  if (usernameExists) {
+    return ErrorHandler(res, 400, "Username already exists");
+  }
   try {
     const user = await Users.create({
       email,
@@ -49,11 +53,16 @@ module.exports.signup = BigPromise(async (req, res) => {
       profile_pic,
     });
     user.save();
-    const access_token = jwt.sign({ _id: user._id, phone_number });
+    const access_token = jwt.sign({
+      _id: user._id,
+      phone_number,
+      email });
     const refresh_token = jwt.sign(
       {
         _id: user._id,
         phone_number,
+        email
+
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
@@ -62,6 +71,8 @@ module.exports.signup = BigPromise(async (req, res) => {
     // store refresh token in database
     await RefreshToken.create({ token: refresh_token });
 
+
+    delete user._doc.password;
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
       ...user._doc,
@@ -86,43 +97,36 @@ module.exports.login = BigPromise(async (req, res) => {
     });
 
     if (!user) {
-      return ErrorHandler(res, 401, "Invalid credentials");
+      return ErrorHandler(res, 403, "Invalid credentials");
     }
 
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      return ErrorHandler(res, 401, "Invalid credentials");
+      return ErrorHandler(res, 403, "Invalid credentials");
     }
     const access_token = jwt.sign({
       _id: user._id,
-      phone_number: user.phone_number,
+      phone_number:user.phone_number,
+      email:user.email
     });
 
     const refresh_token = jwt.sign(
       {
         _id: user._id,
         phone_number: user.phone_number,
+        email: user.email
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
     );
     await RefreshToken.create({ token: refresh_token });
 
+    delete user._doc.password;
     return ControllerResponse(res, 200, {
       message: "Login Successful!",
-      access_token,
+      ...user._doc,
       refresh_token,
-      user: {
-        _id: user._id,
-        email: user.email,
-        name: user.name,
-        phone_number: user.phone_number,
-        username: user.username,
-        occupation: user.occupation,
-        country: user.country,
-        dob: user.dob,
-        profile_pic: user.profile_pic,
-      },
+      access_token
     });
   } catch (err) {
     console.log(err);
@@ -139,6 +143,74 @@ module.exports.verifyEmailExists = BigPromise(async (req, res) => {
     });
   } catch (err) {
     console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.verifyUsernameExists = BigPromise(async (req, res) => {
+  try {
+    const { username } = req.query;
+    const user = await Users.findOne({ username: username });
+    return ControllerResponse(res, 200, {
+      username_exists: user ? true : false,
+    });
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.fetchUserDetails = BigPromise(async (req, res) => {
+  try {
+    const user = await Users.findById(req.user._id);
+    delete user._doc.password;
+    return ControllerResponse(res, 200, {
+      ...user._doc,
+    });
+
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.updateUserProfile = BigPromise(async (req, res) => {
+  const { _id } = req.user;
+  const updateData = req.body; 
+  try {
+    const user = await Users.findById(_id);
+    if (!user) {
+      return ErrorHandler(res, 404, "User not found");
+    }
+    if (updateData.name) {
+      user.name = updateData.name;
+    }
+    if (updateData.username) {
+      user.username = updateData.username;
+    }
+    if (updateData.phone_number) {
+      user.phone_number = updateData.phone_number;
+    }
+    if (updateData.occupation) {
+      user.occupation = updateData.occupation;
+    }
+    if (updateData.country) {
+      user.country = updateData.country;
+    }
+    if (updateData.dob) {
+      user.dob = Date.parse(updateData.dob);
+    }
+    if (updateData.profile_pic) {
+      user.profile_pic = updateData.profile_pic;
+    }
+    await user.save();
+    delete user._doc.password;
+    return ControllerResponse(res, 200, {
+      message: "Profile updated successfully",
+      ...user._doc,
+    });
+  } catch (err) {
+    console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });

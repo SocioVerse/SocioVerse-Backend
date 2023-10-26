@@ -7,12 +7,11 @@ const repostedThreadSchema = new Schema(
             ref: "threadsSchema",
             required: true,
         },
-        reposte_by: {
+        reposted_by: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "userSchema",
             required: true,
         }
-        
     },
     {
         timestamps: true,

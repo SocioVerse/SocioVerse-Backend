@@ -14,11 +14,12 @@ const auth = bigPromise(async (req, res, next) => {
   const token = authHeader.split(" ")[1];
 
   try {
-    const { _id, phone_number } = JwtService.verify(token);
-    // set id & phone_number
+    const { _id, phone_number,email } = JwtService.verify(token);
+    // set id , phone_number and email
     req.user = {
       _id,
       phone_number,
+      email
     };
 
     next();
