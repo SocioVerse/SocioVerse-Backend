@@ -1,12 +1,29 @@
 const express = require("express");
 const router = express.Router();
-const { createThread, updateThread, readThread, fetchFollowers, fetchFollowing, deleteThread, createFollowRequest, confirmFollowRequest, deleteFollowRequest, fetchFollowingThreads, repostThread, fetchRepostedUsers, toggleThreadLike } = require("../services/threadsServices");
+const {
+    createThread,
+    updateThread,
+    readThread,
+    createComment,
+    updateComment,
+    // readCommentReplies,
+    fetchFollowers,
+    fetchFollowing,
+    deleteThread,
+    createFollowRequest,
+    confirmFollowRequest,
+    deleteFollowRequest
+} = require("../services/threadsServices");
 const auth = require("../middlewares/auth");
 
 router.route("/create-new-thread").post(auth, createThread);
 router.route("/update-thread").put(auth, updateThread);
 router.route("/read-thread").get(auth, readThread);
 router.route("/delete-thread").delete(auth, deleteThread);
+
+router.route("/create-comment").post(auth, createComment);
+router.route("/update-comment").put(auth, updateComment);
+// router.route("/read-comment-replies").get(auth, readCommentReplies);
 
 router.route("/create-follow-request").post(auth, createFollowRequest);
 router.route("/confirm-follow-request").put(auth, confirmFollowRequest);
