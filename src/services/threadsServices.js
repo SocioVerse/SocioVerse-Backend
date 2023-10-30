@@ -209,3 +209,53 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
   }
 });
 
+module.exports.createComment = BigPromise(async (req, res) => {
+  try {
+    const isBaseThreadPrivate = await Thread.findById({
+      _id: req.body.threadId,
+      isBase: true,
+    },
+    );
+    console.log(isBaseThreadPrivate);
+    const { threadId, content, images } = req.body;
+    const comment = await Thread({
+      user_id: req.user._id,
+      content,
+      images,
+      is_private: isBaseThreadPrivate.is_private,
+      isBase: false,
+
+    }).save();
+    await Comments({
+      linked_thread: comment._id,
+      base_thread: threadId,
+    }).save();
+    ControllerResponse(res, 200, {
+      message: "Comment created successfully",
+      comment,
+
+    });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.updateComment = BigPromise(async (req, res) => {
+  try {
+    const { commentId, content, images } = req.body;
+    const comment = await Thread.findByIdAndUpdate(commentId, {
+      content,
+      images,
+    });
+
+    ControllerResponse(res, 200, {
+      message: "Comment updated successfully",
+      comment,
+
+    });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
