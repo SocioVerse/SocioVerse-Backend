@@ -2,7 +2,6 @@ const Users = require("../models/usersModel");
 const { hashPassword, verifyPassword } = require("../routes/encryption");
 const BigPromise = require("../middlewares/bigPromise");
 const jwt = require("../utils/jwtService");
-const imgService = require("../routes/imageServices");
 const {
   ControllerResponse,
   ErrorHandler,
@@ -171,6 +170,47 @@ module.exports.fetchUserDetails = BigPromise(async (req, res) => {
 
   } catch (err) {
     console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.updateUserProfile = BigPromise(async (req, res) => {
+  const { _id } = req.user;
+  const updateData = req.body; 
+  try {
+    const user = await Users.findById(_id);
+    if (!user) {
+      return ErrorHandler(res, 404, "User not found");
+    }
+    if (updateData.name) {
+      user.name = updateData.name;
+    }
+    if (updateData.username) {
+      user.username = updateData.username;
+    }
+    if (updateData.phone_number) {
+      user.phone_number = updateData.phone_number;
+    }
+    if (updateData.occupation) {
+      user.occupation = updateData.occupation;
+    }
+    if (updateData.country) {
+      user.country = updateData.country;
+    }
+    if (updateData.dob) {
+      user.dob = Date.parse(updateData.dob);
+    }
+    if (updateData.profile_pic) {
+      user.profile_pic = updateData.profile_pic;
+    }
+    await user.save();
+    delete user._doc.password;
+    return ControllerResponse(res, 200, {
+      message: "Profile updated successfully",
+      ...user._doc,
+    });
+  } catch (err) {
+    console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });

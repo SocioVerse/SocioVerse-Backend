@@ -30,4 +30,9 @@ router.route("/confirm-follow-request").put(auth, confirmFollowRequest);
 router.route("/delete-follow-request").delete(auth, deleteFollowRequest);
 router.route("/fetch-followers").get(auth, fetchFollowers);
 router.route("/fetch-following").get(auth, fetchFollowing);
+router.route("/fetch-following-threads").get(auth, fetchFollowingThreads);
+router.route("/repost-thread").post(auth, repostThread);
+router.route("/fetch-reposted-users").get(auth, fetchRepostedUsers);
+router.route("/toggle-thread-like").post(auth, toggleThreadLike);
+
 module.exports = router;

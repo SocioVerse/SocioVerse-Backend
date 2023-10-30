@@ -5,6 +5,7 @@ const {
     verifyEmailExists,
     verifyUsernameExists,
     fetchUserDetails,
+    updateUserProfile,
 } = require("../services/usersServices");
 const router = express.Router();
 const auth = require("../middlewares/auth");
@@ -19,6 +20,6 @@ router.route("/verify-username-exists").get(verifyUsernameExists);
 
 // private apis 
 router.route("/fetch-user-details").get(auth, fetchUserDetails);
-
+router.route("/update-user-profile").put(auth, updateUserProfile);
 
 module.exports = router;
