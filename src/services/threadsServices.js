@@ -10,6 +10,17 @@ const Comments = require("../models/commentModel");
 const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
 
+//helper functions
+const deleteCommentsRecursively = async (threadId) => {
+  const comments = await Comments.find({ base_thread: threadId });
+  for (const comment of comments) {
+    await deleteCommentsRecursively(comment.linked_thread);
+    await Comments.deleteOne({ _id: comment._id });
+    await Thread.deleteOne({ _id: comment.linked_thread });
+  }
+};
+
+//service functions
 module.exports.createThread = BigPromise(async (req, res) => {
   console.log(req.user);
   try {
@@ -94,16 +105,20 @@ module.exports.updateThread = BigPromise(async (req, res) => {
 
 module.exports.deleteThread = BigPromise(async (req, res) => {
   try {
-    const thread = await Thread.findByIdAndRemove(req.query.threadId);
-    if (!thread) {
+    const {threadId} = req.query;
+    const baseThread = await Thread.findById(threadId);
+    if (!baseThread) {
       return ErrorHandler(res, 404, "Thread does not exist");
     }
-    ControllerResponse(res, 200, "Thread Deleted Successfully");
+    await deleteCommentsRecursively(threadId);
+    await Thread.deleteOne({ _id: threadId });
+    ControllerResponse(res, 200, "Thread and its comments deleted successfully");
   } catch (err) {
-    
+    console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+
 
 module.exports.createFollowRequest = BigPromise(async (req, res) => {
   try {
@@ -229,6 +244,25 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, threads);
   } catch (err) {
     
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.updateComment = BigPromise(async (req, res) => {
+  try {
+    const { commentId, content, images } = req.body;
+    const comment = await Thread.findByIdAndUpdate(commentId, {
+      content,
+      images,
+    });
+
+    ControllerResponse(res, 200, {
+      message: "Comment updated successfully",
+      comment,
+
+    });
+  } catch (err) {
+    console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
