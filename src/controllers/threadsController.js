@@ -12,7 +12,12 @@ const {
     deleteThread,
     createFollowRequest,
     confirmFollowRequest,
-    deleteFollowRequest
+    fetchFollowingThreads,
+    deleteFollowRequest,
+    repostThread,
+    fetchRepostedUsers,
+    toggleThreadLike,
+    
 } = require("../services/threadsServices");
 const auth = require("../middlewares/auth");
 
