@@ -10,7 +10,7 @@ const Comments = require("../models/commentModel");
 const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
 
-//helper functions
+//Helper functions
 const deleteCommentsRecursively = async (threadId) => {
   const comments = await Comments.find({ base_thread: threadId });
   for (const comment of comments) {
@@ -20,7 +20,7 @@ const deleteCommentsRecursively = async (threadId) => {
   }
 };
 
-//service functions
+//Service functions
 module.exports.createThread = BigPromise(async (req, res) => {
   console.log(req.user);
   try {
