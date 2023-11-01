@@ -207,6 +207,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
 
     ControllerResponse(res, 200, { followers, followerCount });
   } catch (err) {
+    
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -214,15 +215,49 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
 module.exports.fetchFollowing = BigPromise(async (req, res) => {
   try {
     const { userId } = req.query;
-    const following = await Follow.find({ followed_by: userId, is_confirmed: true });
+    const following = await Follow.find({
+      followed_by: userId,
+      is_confirmed: true,
+    });
     const followingCount = await Follow.countDocuments({ followed_by: userId, is_confirmed: true });
-
     ControllerResponse(res, 200, { following, followingCount });
   } catch (err) {
+    
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
+module.exports.createComment = BigPromise(async (req, res) => {
+  try {
+    const isBaseThreadPrivate = await Thread.findById({
+      _id: req.body.threadId,
+      isBase: true,
+    },
+    );
+    console.log(isBaseThreadPrivate);
+    const { threadId, content, images } = req.body;
+    const comment = await Thread({
+      user_id: req.user._id,
+      content,
+      images,
+      is_private: isBaseThreadPrivate.is_private,
+      isBase: false,
+
+    }).save();
+    await Comments({
+      linked_thread: comment._id,
+      base_thread: threadId,
+    }).save();
+    ControllerResponse(res, 200, {
+      message: "Comment created successfully",
+      comment,
+
+    });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
 
 module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
   try {
