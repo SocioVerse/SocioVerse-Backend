@@ -253,7 +253,6 @@ module.exports.createComment = BigPromise(async (req, res) => {
     });
   } catch (err) {
     console.error(err);
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
