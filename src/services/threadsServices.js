@@ -203,8 +203,9 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
     const { userId } = req.query;
 
     const followers = await Follow.find({ followed_to: userId, is_confirmed: true });
+    const followerCount = await Follow.countDocuments({ followed_to: userId, is_confirmed: true });
 
-    ControllerResponse(res, 200, followers);
+    ControllerResponse(res, 200, { followers, followerCount });
   } catch (err) {
     
     ErrorHandler(res, 500, "Internal Server Error");
@@ -218,7 +219,8 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
       followed_by: userId,
       is_confirmed: true,
     });
-    ControllerResponse(res, 200, following);
+    const followingCount = await Follow.countDocuments({ followed_by: userId, is_confirmed: true });
+    ControllerResponse(res, 200, { following, followingCount });
   } catch (err) {
     
     ErrorHandler(res, 500, "Internal Server Error");
