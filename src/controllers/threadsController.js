@@ -17,6 +17,8 @@ const {
     repostThread,
     fetchRepostedUsers,
     toggleThreadLike,
+    fetchAllActivities,
+    fetchAllFollowRequest,
     
 } = require("../services/threadsServices");
 const auth = require("../middlewares/auth");
@@ -39,5 +41,6 @@ router.route("/fetch-following-threads").get(auth, fetchFollowingThreads);
 router.route("/repost-thread").post(auth, repostThread);
 router.route("/fetch-reposted-users").get(auth, fetchRepostedUsers);
 router.route("/toggle-thread-like").post(auth, toggleThreadLike);
-
+router.route("/fetchAllActivities").get(auth, fetchAllActivities);
+router.route("/fetchAllFollowRequest").get(auth,fetchAllFollowRequest);
 module.exports = router;
