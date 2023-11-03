@@ -266,9 +266,6 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       followed_by: _id,
       is_confirmed: true,
     });
-    if (following.length === 0) {
-      return ControllerResponse(res, 200, "No following records found");
-    }
     const followingUserIds = following.map((follow) => follow.followed_to);
     console.log(followingUserIds);
     const threads = await Thread.find({
