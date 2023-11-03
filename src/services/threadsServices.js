@@ -5,7 +5,7 @@ const {
 const BigPromise = require("../middlewares/bigPromise");
 const Users = require("../models/usersModel");
 const Thread = require("../models/threadsModel");
-const Follow =  require("../models/follows");
+const Follow = require("../models/follows");
 const Comments = require("../models/commentModel");
 const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
@@ -105,7 +105,7 @@ module.exports.updateThread = BigPromise(async (req, res) => {
 
 module.exports.deleteThread = BigPromise(async (req, res) => {
   try {
-    const {threadId} = req.query;
+    const { threadId } = req.query;
     const baseThread = await Thread.findById(threadId);
     if (!baseThread) {
       return ErrorHandler(res, 404, "Thread does not exist");
@@ -144,7 +144,7 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
     await followRequest.save();
     ControllerResponse(res, 200, "Follow Request Sent Succesfully");
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -168,7 +168,7 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     await Request.save();
     ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -193,7 +193,7 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
       ErrorHandler(res, 404, "Follow Request Not Found");
     }
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -207,7 +207,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
 
     ControllerResponse(res, 200, { followers, followerCount });
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -222,7 +222,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
     const followingCount = await Follow.countDocuments({ followed_by: userId, is_confirmed: true });
     ControllerResponse(res, 200, { following, followingCount });
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -261,21 +261,50 @@ module.exports.createComment = BigPromise(async (req, res) => {
 
 module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
   try {
-    const { _id } = req.user; 
+    const { _id } = req.user;
     const following = await Follow.find({
       followed_by: _id,
       is_confirmed: true,
     });
     const followingUserIds = following.map((follow) => follow.followed_to);
     console.log(followingUserIds);
+    // Fetch threads based on user_id
     const threads = await Thread.find({
       user_id: { $in: followingUserIds },
       isBase: true,
     });
 
-    ControllerResponse(res, 200, threads);
+    // Fetch user details for the users associated with the threads
+    const users = await Users.find(
+      { _id: { $in: threads.map(thread => thread.user_id) } },
+      {
+        _id: 1,
+        username: 1, // Include only the fields you want
+        occupation: 1,
+        profile_pic: 1,// Include other fields you want
+      }
+    );
+
+
+    // Create a map of users by their _id
+    const userMap = new Map();
+    users.forEach(user => {
+      userMap.set(user._id.toString(), user);
+    });
+
+    // Merge user details with each element in the threads array
+    const threadsWithUserDetails = threads.map(thread => {
+      const user = userMap.get(thread.user_id.toString());
+      return {
+        user: user,
+        ...thread._doc
+      };
+    });
+
+
+    ControllerResponse(res, 200, threadsWithUserDetails);
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -321,14 +350,14 @@ module.exports.repostThread = BigPromise(async (req, res) => {
     await newRepost.save();
     ControllerResponse(res, 200, "Thread reposted successfully");
   } catch (err) {
-    
+
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
 module.exports.fetchRepostedUsers = BigPromise(async (req, res) => {
   try {
-    const {threadId} = req.query;
+    const { threadId } = req.query;
     const thread = await Thread.findById(threadId);
     if (!thread) {
       return res.status(404).json({ message: 'Thread not found' });
@@ -377,7 +406,7 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
 
 module.exports.fetchAllActivities = BigPromise(async (req, res) => {
   try {
-    const {userId} = req.query; // Assuming this is the logged-in user's ID
+    const { userId } = req.query; // Assuming this is the logged-in user's ID
 
     const followRequestCount = await Follow.countDocuments({ followed_to: userId, is_confirmed: false });
 
@@ -405,7 +434,7 @@ module.exports.fetchAllActivities = BigPromise(async (req, res) => {
     }
 
     // Now, profilePics and names arrays contain the latest two profile pictures and names
-    ControllerResponse(res, 200, { profilePics, names,followRequestCount });
+    ControllerResponse(res, 200, { profilePics, names, followRequestCount });
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, 'Internal Server Error');
@@ -425,7 +454,7 @@ module.exports.fetchAllFollowRequest = BigPromise(async (req, res) => {
           Name: user.name,
           UserName: user.username,
           Occupation: user.occupation,
-          ProfilePic:user.profile_pic,
+          ProfilePic: user.profile_pic,
         };
         data.push(userData);
       }
