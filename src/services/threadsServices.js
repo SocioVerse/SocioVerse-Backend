@@ -466,3 +466,44 @@ module.exports.fetchAllFollowRequest = BigPromise(async (req, res) => {
   }
 });
 
+// Search for users by username, name, or email
+module.exports.searchAPI = BigPromise(async (req, res) => {
+  try {
+    const { query } = req.query; // Get the search query from the request query parameter
+
+    if (!query) {
+      return ErrorHandler(res, 400, 'Search field is required.');
+    }
+
+    // Define the fields you want to retrieve
+    const projection = {
+      username: 1,
+      name: 1,
+      profile_pic: 1,
+      occupation: 1,
+    };
+
+    // Use a regular expression to perform a case-insensitive search on multiple fields
+    const users = await Users.find(
+      {
+        $or: [
+          { username: { $regex: new RegExp(query, 'i') } },
+          { name: { $regex: new RegExp(query, 'i') } },
+          { email: { $regex: new RegExp(query, 'i') } },
+        ],
+      },
+      projection // Apply the projection to retrieve specific fields
+    );
+
+    if (users.length === 0) {
+      return ErrorHandler(res, 404, 'No users found for the given query.');
+    }
+
+    ControllerResponse(res, 200, users);
+  } catch (error) {
+    console.error(error);
+    ErrorHandler(res, 500, 'Internal Server Error');
+  }
+});
+
+
