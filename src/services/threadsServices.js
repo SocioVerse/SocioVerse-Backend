@@ -14,7 +14,7 @@ const { default: mongoose } = require("mongoose");
 //Helper Functions
 
 const deleteCommentsRecursively = async (threadId) => {
-  const comments = await Thread.find({ _id: {$ne : threadId}, parent_thread: threadId });
+  const comments = await Thread.find({ _id: { $ne: threadId }, parent_thread: threadId });
   for (let i = 0; i < comments.length; i++) {
     await deleteCommentsRecursively(comments[i]._id);
     await Thread.deleteOne({ _id: comments[i]._id });
@@ -128,7 +128,14 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
     });
 
     if (existingRequest) {
-      return ErrorHandler(res, 404, "Follow Request Already Exists")
+      // If the request exists, delete it
+      await existingRequest.deleteOne({
+        followed_by: requestingUserId,
+        followed_to: targetUserId,
+      });
+
+      ControllerResponse(res, 200, "Follow Request Sent Succesfully Deleted");
+      return;
     }
 
     // Create a new follow request
@@ -254,7 +261,7 @@ module.exports.createComment = BigPromise(async (req, res) => {
 });
 
 module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
-  try { 
+  try {
 
     const { _id } = req.user;
 
@@ -282,35 +289,8 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
 
     console.log(followingUserIds[0]?.followingUserIds || []);
 
-    // Use aggregation to fetch threads based on followingUserIds
-    const threads = await Thread.aggregate([
-      {
-        $match: {
-          user_id: { $in: followingUserIds[0]?.followingUserIds || [] },
-          isBase: true,
-        },
-      },
-    ]);
 
-    // Create an array of user IDs from threads
-    const threadUserIds = threads.map((thread) => thread.user_id);
 
-    // Use aggregation to fetch user details for the users associated with the threads
-    const users = await Users.aggregate([
-      {
-        $match: {
-          _id: { $in: threadUserIds },
-        },
-      },
-      {
-        $project: {
-          _id: 1,
-          username: 1,
-          occupation: 1,
-          profile_pic: 1,
-        },
-      },
-    ]);
 
     // Use aggregation to fetch the profile pics of users who posted the latest 3 comments for each thread
     const threadsWithComments = await Thread.aggregate([
@@ -319,6 +299,33 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
           user_id: { $in: followingUserIds[0]?.followingUserIds || [] },
           isBase: true,
         },
+      },
+      {
+        $lookup: {
+          from: "threadlikes",
+          let: { threadId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$thread_id", "$$threadId"] },
+                    { $eq: ["$liked_by", new mongoose.Types.ObjectId(_id)] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "userLikes",
+        },
+      },
+      {
+        $match: {
+          userLikes: { $size: 0 },
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
       },
       {
         $lookup: {
@@ -402,13 +409,49 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       });
       return thread;
     });
+    // Create an array of user IDs from threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
+    // Use aggregation to fetch user details for the users associated with the threads
+    const users = await Users.aggregate([
+      {
+        $match: {
+          _id: { $in: threadUserIds },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          username: 1,
+          occupation: 1,
+          profile_pic: 1,
+        },
+      },
+    ]);
+
+
+    // Add no of comment of each thread
+
+    for (let i = 0; i < threadsWithUserDetails.length; i++) {
+      const comments = await Thread.find({ parent_thread: threadsWithUserDetails[i]._id });
+      threadsWithUserDetails[i].comment_count = comments.length;
+    }
+
+
+    // Add user details with each thread
+    threadsWithUserDetails.forEach((thread) => {
+
+      const user = users.find((user) => user._id.toString() === thread.user_id.toString());
+      delete thread.user_id;
+      delete thread.latestComments;
+      thread.user = user;
+    });
     console.log(threadsWithUserDetails);
 
 
 
 
-    
+
     ControllerResponse(res, 200, threadsWithUserDetails);
   } catch (err) {
     console.log(err);
@@ -429,6 +472,20 @@ module.exports.updateComment = BigPromise(async (req, res) => {
       comment,
 
     });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+module.exports.readCommentReplies = BigPromise(async (req, res) => {
+  try {
+
+    // Pending
+
+
+
+
+    ControllerResponse(res, 200,data);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -594,6 +651,12 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
     // Use a regular expression to perform a case-insensitive search on multiple fields
     const users = await Users.find(
       {
+        _id: { $ne: req.user._id },
+
+
+
+
+
         $or: [
           { username: { $regex: new RegExp(query, 'i') } },
           { name: { $regex: new RegExp(query, 'i') } },
@@ -602,12 +665,36 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
       },
       projection // Apply the projection to retrieve specific fields
     );
-
-    if (users.length === 0) {
-      return ErrorHandler(res, 404, 'No users found for the given query.');
+    const data = [];
+    // isFollowed Field adding
+    for (let i = 0; i < users.length; i++) {
+      const follow = await Follow.findOne({
+        followed_by: req.user._id,
+        followed_to: users[i]._id,
+      });
+      if (follow == null) {
+        data.push({
+          ...users[i]._doc,
+        })
+      }
+      else if (follow.is_confirmed == true) {
+        data.push({
+          ...users[i]._doc,
+          isFollowed: true,
+        })
+      }
+      else if (follow.is_confirmed == false) {
+        data.push({
+          ...users[i]._doc,
+          isFollowed: false,
+        })
+      }
     }
+    console.log(data);
 
-    ControllerResponse(res, 200, users);
+
+
+    ControllerResponse(res, 200, data);
   } catch (error) {
     console.error(error);
     ErrorHandler(res, 500, 'Internal Server Error');
