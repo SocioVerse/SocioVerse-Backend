@@ -477,6 +477,20 @@ module.exports.updateComment = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+module.exports.readCommentReplies = BigPromise(async (req, res) => {
+  try {
+
+    // Pending
+
+
+
+
+    ControllerResponse(res, 200,data);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
 
 module.exports.repostThread = BigPromise(async (req, res) => {
   try {
