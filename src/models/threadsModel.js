@@ -7,6 +7,14 @@ const threadsSchema = new Schema(
       ref: "userSchema",
       required: true,
     },
+    parent_thread: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "threadsSchema",
+      required: true,
+      default: function () {
+        return this._id;
+      },
+    },
     content: {
       type: String,
       required: true,
@@ -20,6 +28,10 @@ const threadsSchema = new Schema(
       },
     ],
     like_count: {
+      type: Number,
+      default: 0,
+    },
+    comment_count: {
       type: Number,
       default: 0,
     },

@@ -6,7 +6,7 @@ const {
     readThread,
     createComment,
     updateComment,
-    // readCommentReplies,
+    readCommentReplies,
     fetchFollowers,
     fetchFollowing,
     deleteThread,
@@ -24,14 +24,14 @@ const {
 } = require("../services/threadsServices");
 const auth = require("../middlewares/auth");
 
-router.route("/create-new-thread").post(auth, createThread);
-router.route("/update-thread").put(auth, updateThread);
-router.route("/read-thread").get(auth, readThread);
-router.route("/delete-thread").delete(auth, deleteThread);
+router.route("/create-new-thread").post(auth, createThread); //Done
+router.route("/update-thread").put(auth, updateThread);  //Done
+router.route("/read-thread").get(auth, readThread); //Done
+router.route("/delete-thread").delete(auth, deleteThread); //Done
 
-router.route("/create-comment").post(auth, createComment);
+router.route("/create-comment").post(auth, createComment); //Done
 router.route("/update-comment").put(auth, updateComment);
-// router.route("/read-comment-replies").get(auth, readCommentReplies);
+router.route("/read-comment-replies").get(auth, readCommentReplies);
 
 router.route("/create-follow-request").post(auth, createFollowRequest);
 router.route("/confirm-follow-request").put(auth, confirmFollowRequest);
