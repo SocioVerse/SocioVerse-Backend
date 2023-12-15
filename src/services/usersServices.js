@@ -277,10 +277,11 @@ module.exports.fetchAllFollowRequest = BigPromise(async (req, res) => {
 
       if (user) {
         const userData = {
-          Name: user.name,
-          UserName: user.username,
-          Occupation: user.occupation,
-          ProfilePic: user.profile_pic,
+          _id: user._id,
+          name: user.name,
+          username: user.username,
+          occupation: user.occupation,
+          profile_pic: user.profile_pic,
         };
         data.push(userData);
       }
