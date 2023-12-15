@@ -292,7 +292,7 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
 
 
 
-    // Use aggregation to fetch the profile pics of users who posted the latest 3 comments for each thread
+    // Aggregation to fetch the profile pics of users who posted the latest 3 comments for each thread
     const threadsWithComments = await Thread.aggregate([
       {
         $match: {
@@ -371,13 +371,13 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       },
     ]);
 
-    // Create an array of user IDs from comment users
+    // Array of user IDs from comment users
     const commentUserIds = threadsWithComments.reduce((acc, thread) => {
       acc.push(...thread.commentUsers.map((commentUser) => commentUser._id));
       return acc;
     }, []);
 
-    // Use aggregation to fetch user details for the comment users
+    // Aggregation to fetch user details for the comment users
     const commentUsers = await Users.aggregate([
       {
         $match: {
@@ -409,10 +409,10 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       });
       return thread;
     });
-    // Create an array of user IDs from threads
+    // Array of user IDs from threads
     const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-    // Use aggregation to fetch user details for the users associated with the threads
+    // Aggregation to fetch user details for the users associated with the threads
     const users = await Users.aggregate([
       {
         $match: {
