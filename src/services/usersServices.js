@@ -24,6 +24,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     country,
     dob,
     profile_pic,
+    face_image_dataset,
   } = req.body;
   console.log(req.body);
   if (checkEmail(email) == false) {
@@ -51,6 +52,7 @@ module.exports.signup = BigPromise(async (req, res) => {
       country,
       dob: Date.parse(dob),
       profile_pic,
+      face_image_dataset:face_image_dataset??[],
     });
     user.save();
     const access_token = jwt.sign({
@@ -97,12 +99,12 @@ module.exports.login = BigPromise(async (req, res) => {
     });
 
     if (!user) {
-      return ErrorHandler(res, 403, "Invalid credentials");
+      return ErrorHandler(res, 400, "Invalid credentials");
     }
 
     const isPasswordValid = await verifyPassword(password, user.password);
     if (!isPasswordValid) {
-      return ErrorHandler(res, 403, "Invalid credentials");
+      return ErrorHandler(res, 400, "Invalid credentials");
     }
     const access_token = jwt.sign({
       _id: user._id,
@@ -137,10 +139,21 @@ module.exports.login = BigPromise(async (req, res) => {
 module.exports.verifyEmailExists = BigPromise(async (req, res) => {
   try {
     const { email } = req.query;
+    if (checkEmail(email) == false) {
+      return ErrorHandler(res, 400, "Invalid Email");
+    }
+   
+
+
     const user = await Users.findOne({ email: email });
+    if(user){
+      return ErrorHandler(res, 400, 
+        "Email already exists");
+    }
     return ControllerResponse(res, 200, {
-      email_exists: user ? true : false,
+      email_exists: false,
     });
+
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");

@@ -6,7 +6,7 @@ const {
     readThread,
     createComment,
     updateComment,
-    // readCommentReplies,
+    readCommentReplies,
     fetchFollowers,
     fetchFollowing,
     deleteThread,
@@ -31,7 +31,7 @@ router.route("/delete-thread").delete(auth, deleteThread); //Done
 
 router.route("/create-comment").post(auth, createComment); //Done
 router.route("/update-comment").put(auth, updateComment);
-// router.route("/read-comment-replies").get(auth, readCommentReplies);
+router.route("/read-comment-replies").get(auth, readCommentReplies);
 
 router.route("/create-follow-request").post(auth, createFollowRequest);
 router.route("/confirm-follow-request").put(auth, confirmFollowRequest);
