@@ -9,6 +9,7 @@ const {
 } = require("../helpers/customResponse");
 const RefreshToken = require("../models/refreshToken");
 const Follow = require("../models/follows");
+const Thread = require("../models/threadsModel");
 
 function checkEmail(email) {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
