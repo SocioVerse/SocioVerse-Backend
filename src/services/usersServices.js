@@ -227,3 +227,105 @@ module.exports.updateUserProfile = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+module.exports.fetchAllActivities = BigPromise(async (req, res) => {
+  try {
+    const { userId } = req.query; // Assuming this is the logged-in user's ID
+
+    const followRequestCount = await Follow.countDocuments({ followed_to: userId, is_confirmed: false });
+
+    // Fetch the latest two follow requests
+    const latestFollowRequests = await Follow.find(
+      { followed_to: userId, is_confirmed: false },
+      null,
+      { sort: { createdAt: -1 }, limit: 2 }
+    );
+
+    // Initialize arrays to store profile pictures and names
+    const profilePics = [];
+    const names = [];
+
+    // Iterate through the latest follow requests
+    for (const followRequest of latestFollowRequests) {
+      // Fetch the user's details based on the follow request
+      const user = await Users.findById(followRequest.followed_by);
+
+      // Check if the user and their profile picture exist
+      if (user && user.profile_pic) {
+        profilePics.push(user.profile_pic);
+        names.push(user.name);
+      }
+    }
+
+    // Now, profilePics and names arrays contain the latest two profile pictures and names
+    ControllerResponse(res, 200, { profilePics, names, followRequestCount });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, 'Internal Server Error');
+  }
+});
+
+module.exports.fetchAllFollowRequest = BigPromise(async (req, res) => {
+  try {
+    const user_id = req.user._id;
+    const followRequests = await Follow.find({ followed_to: user_id, is_confirmed: false });
+    const data = [];
+    for (const Request of followRequests) {
+      const user = await Users.findById(Request.followed_by);
+
+      if (user) {
+        const userData = {
+          Name: user.name,
+          UserName: user.username,
+          Occupation: user.occupation,
+          ProfilePic: user.profile_pic,
+        };
+        data.push(userData);
+      }
+    }
+    ControllerResponse(res, 200, data);
+  } catch (error) {
+    console.error(error);
+    ErrorHandler(res, 500, 'Internal Server Error');
+  }
+});
+
+// Search for users by username, name, or email
+module.exports.searchAPI = BigPromise(async (req, res) => {
+  try {
+    const { query } = req.query; // Get the search query from the request query parameter
+
+    if (!query) {
+      return ErrorHandler(res, 400, 'Search field is required.');
+    }
+
+    // Define the fields you want to retrieve
+    const projection = {
+      username: 1,
+      name: 1,
+      profile_pic: 1,
+      occupation: 1,
+    };
+
+    // Use a regular expression to perform a case-insensitive search on multiple fields
+    const users = await Users.find(
+      {
+        $or: [
+          { username: { $regex: new RegExp(query, 'i') } },
+          { name: { $regex: new RegExp(query, 'i') } },
+          { email: { $regex: new RegExp(query, 'i') } },
+        ],
+      },
+      projection // Apply the projection to retrieve specific fields
+    );
+
+    if (users.length === 0) {
+      return ErrorHandler(res, 404, 'No users found for the given query.');
+    }
+
+    ControllerResponse(res, 200, users);
+  } catch (error) {
+    console.error(error);
+    ErrorHandler(res, 500, 'Internal Server Error');
+  }
+});
+
