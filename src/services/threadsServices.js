@@ -10,17 +10,18 @@ const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
 const { default: mongoose } = require("mongoose");
 
-
 //Helper Functions
 
 const deleteCommentsRecursively = async (threadId) => {
-  const comments = await Thread.find({ _id: { $ne: threadId }, parent_thread: threadId });
+  const comments = await Thread.find({
+    _id: { $ne: threadId },
+    parent_thread: threadId,
+  });
   for (let i = 0; i < comments.length; i++) {
     await deleteCommentsRecursively(comments[i]._id);
     await Thread.deleteOne({ _id: comments[i]._id });
   }
-}
-
+};
 
 //Service functions
 module.exports.createThread = BigPromise(async (req, res) => {
@@ -49,7 +50,6 @@ module.exports.createThread = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, {
       message: "Thread created successfully",
       thread: newThread,
-
     });
   } catch (err) {
     console.error(err);
@@ -109,24 +109,23 @@ module.exports.deleteThread = BigPromise(async (req, res) => {
     }
     await deleteCommentsRecursively(threadId);
     await Thread.deleteOne({ _id: threadId });
-    ControllerResponse(res, 200, "Thread and its comments deleted successfully");
+    ControllerResponse(
+      res,
+      200,
+      "Thread and its comments deleted successfully"
+    );
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
-
-
-
-
 module.exports.createComment = BigPromise(async (req, res) => {
   try {
     const isBaseThreadPrivate = await Thread.findById({
       _id: req.body.threadId,
       isBase: true,
-    },
-    );
+    });
     console.log(isBaseThreadPrivate);
     const { threadId, content, images } = req.body;
     const comment = await Thread({
@@ -136,19 +135,16 @@ module.exports.createComment = BigPromise(async (req, res) => {
       images,
       is_private: isBaseThreadPrivate.is_private,
       isBase: false,
-
     }).save();
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
       comment,
-
     });
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
-
 
 module.exports.updateComment = BigPromise(async (req, res) => {
   try {
@@ -161,7 +157,6 @@ module.exports.updateComment = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, {
       message: "Comment updated successfully",
       comment,
-
     });
   } catch (err) {
     console.error(err);
@@ -170,37 +165,39 @@ module.exports.updateComment = BigPromise(async (req, res) => {
 });
 module.exports.readCommentReplies = BigPromise(async (req, res) => {
   try {
+    const { commentId } = req.query;
+    const parentComment = await Thread.findById(commentId);
+    if (!parentComment) {
+      return ErrorHandler(res, 404, "Parent Comment not found");
+    }
+    const replies = await Thread.find({ parent_thread: commentId });
 
-    // Pending
-
-
-
-
-    ControllerResponse(res, 200,data);
+    ControllerResponse(res, 200, { parentComment, replies });
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
-
-
 module.exports.fetchRepostedUsers = BigPromise(async (req, res) => {
   try {
     const { threadId } = req.query;
     const thread = await Thread.findById(threadId);
     if (!thread) {
-      return res.status(404).json({ message: 'Thread not found' });
+      return res.status(404).json({ message: "Thread not found" });
     }
     const reposts = await RepostedThread.find({ thread_id: threadId });
     const repostedUserIds = reposts.map((repost) => repost.reposted_by);
-    const repostedUsers = await Users.find({ _id: { $in: repostedUserIds } }, 'username');
+    const repostedUsers = await Users.find(
+      { _id: { $in: repostedUserIds } },
+      "username"
+    );
 
     ControllerResponse(res, 200, repostedUsers);
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error");
   }
-})
+});
 
 module.exports.toggleThreadLike = BigPromise(async (req, res) => {
   try {
@@ -234,5 +231,3 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
-
-
