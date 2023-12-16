@@ -27,6 +27,9 @@ const userSchema = new Schema(
       required: true,
       trim: true,
     },
+
+
+
     occupation: {
       type: String,
       required: true,
@@ -41,6 +44,7 @@ const userSchema = new Schema(
       required: true,
       trim: true,
     },
+    
     dob: {
       type: Date,
       required: true,
@@ -53,6 +57,19 @@ const userSchema = new Schema(
       type: String,
       trim: true,
     },
+    followers_count: {
+      type: Number,
+      default: 0,
+    },
+    following_count: {
+      type: Number,
+      default: 0,
+    },
+    post_count: {
+      type: Number,
+      default: 0,
+    },
+
     face_image_dataset: [
       {
         type: String,
@@ -61,11 +78,7 @@ const userSchema = new Schema(
         default: [],
       },
     ],
-    socioThread_bio: {
-      type: String,
-      trim: true,
-    },
-    socioVerse_bio: {
+    bio: {
       type: String,
       trim: true,
     },
