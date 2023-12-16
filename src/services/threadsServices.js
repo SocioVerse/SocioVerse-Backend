@@ -33,6 +33,7 @@ module.exports.createThread = BigPromise(async (req, res) => {
       images,
       is_private: is_private || false,
       isBase: isBase || true,
+      comment_count: comments.length,
     });
     await newThread.save();
     for (let i = 0; i < comments.length; i++) {
@@ -43,6 +44,10 @@ module.exports.createThread = BigPromise(async (req, res) => {
         images: comments[i].images,
         is_private: newThread.is_private,
         isBase: false,
+      });
+
+      await Users.findByIdAndUpdate(req.user._id, {
+        $inc: { post_count: 1 },
       });
       await newComment.save();
     }
@@ -104,6 +109,9 @@ module.exports.deleteThread = BigPromise(async (req, res) => {
   try {
     const { threadId } = req.query;
     const baseThread = await Thread.findById(threadId);
+    await Thread.findByIdAndUpdate(baseThread.parent_thread, {
+      $inc: { comment_count: -1 }
+      });
     if (!baseThread) {
       return ErrorHandler(res, 404, "Thread does not exist");
     }
@@ -125,10 +133,15 @@ module.exports.createComment = BigPromise(async (req, res) => {
     const isBaseThreadPrivate = await Thread.findById({
       _id: req.body.threadId,
       isBase: true,
-    },
-    );
+    });
+
+
     console.log(isBaseThreadPrivate);
     const { threadId, content, images } = req.body;
+    //Increment comment count of parent thread
+    await Thread.findByIdAndUpdate(threadId, {
+      $inc: { comment_count: 1 }
+    });
     const comment = await Thread({
       user_id: req.user._id,
       parent_thread: threadId,
@@ -136,7 +149,6 @@ module.exports.createComment = BigPromise(async (req, res) => {
       images,
       is_private: isBaseThreadPrivate.is_private,
       isBase: false,
-
     }).save();
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
