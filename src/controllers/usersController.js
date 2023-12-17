@@ -15,7 +15,8 @@ const {
     updateUserProfile,
     fetchLatestFollowRequests,
     fetchAllFollowRequest,
-
+    unFollowUser,
+    fetchUserProfileDetails,
     searchAPI,
 } = require("../services/usersServices");
 const router = express.Router();
@@ -35,6 +36,7 @@ router.route("/update-user-profile").put(auth, updateUserProfile);
 router.route("/create-follow-request").post(auth, createFollowRequest);
 router.route("/confirm-follow-request").put(auth, confirmFollowRequest);
 router.route("/delete-follow-request").delete(auth, deleteFollowRequest);
+router.route("/unfollow-user").delete(auth, unFollowUser);
 router.route("/fetch-followers").get(auth, fetchFollowers);
 router.route("/fetch-following").get(auth, fetchFollowing);
 router.route("/fetch-following-threads").get(auth, fetchFollowingThreads);
@@ -42,5 +44,6 @@ router.route("/fetch-latest-follow-request").get(auth, fetchLatestFollowRequests
 router.route("/repost-thread").post(auth, repostThread);
 router.route("/fetch-all-follow-request").get(auth,fetchAllFollowRequest);
 router.route("/search-user").get(auth,searchAPI);
+router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
 module.exports = router;
  
