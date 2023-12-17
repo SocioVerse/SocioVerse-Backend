@@ -28,8 +28,6 @@ const userSchema = new Schema(
       trim: true,
     },
 
-
-
     occupation: {
       type: String,
       required: true,
@@ -44,7 +42,7 @@ const userSchema = new Schema(
       required: true,
       trim: true,
     },
-    
+
     dob: {
       type: Date,
       required: true,

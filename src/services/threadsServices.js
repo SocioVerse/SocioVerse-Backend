@@ -10,17 +10,18 @@ const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
 const { default: mongoose } = require("mongoose");
 
-
 //Helper Functions
 
 const deleteCommentsRecursively = async (threadId) => {
-  const comments = await Thread.find({ _id: { $ne: threadId }, parent_thread: threadId });
+  const comments = await Thread.find({
+    _id: { $ne: threadId },
+    parent_thread: threadId,
+  });
   for (let i = 0; i < comments.length; i++) {
     await deleteCommentsRecursively(comments[i]._id);
     await Thread.deleteOne({ _id: comments[i]._id });
   }
-}
-
+};
 
 //Service functions
 module.exports.createThread = BigPromise(async (req, res) => {
@@ -54,7 +55,6 @@ module.exports.createThread = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, {
       message: "Thread created successfully",
       thread: newThread,
-
     });
   } catch (err) {
     console.error(err);
@@ -110,23 +110,23 @@ module.exports.deleteThread = BigPromise(async (req, res) => {
     const { threadId } = req.query;
     const baseThread = await Thread.findById(threadId);
     await Thread.findByIdAndUpdate(baseThread.parent_thread, {
-      $inc: { comment_count: -1 }
-      });
+      $inc: { comment_count: -1 },
+    });
     if (!baseThread) {
       return ErrorHandler(res, 404, "Thread does not exist");
     }
     await deleteCommentsRecursively(threadId);
     await Thread.deleteOne({ _id: threadId });
-    ControllerResponse(res, 200, "Thread and its comments deleted successfully");
+    ControllerResponse(
+      res,
+      200,
+      "Thread and its comments deleted successfully"
+    );
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
-
-
-
-
 
 module.exports.createComment = BigPromise(async (req, res) => {
   try {
@@ -135,12 +135,11 @@ module.exports.createComment = BigPromise(async (req, res) => {
       isBase: true,
     });
 
-
     console.log(isBaseThreadPrivate);
     const { threadId, content, images } = req.body;
     //Increment comment count of parent thread
     await Thread.findByIdAndUpdate(threadId, {
-      $inc: { comment_count: 1 }
+      $inc: { comment_count: 1 },
     });
     const comment = await Thread({
       user_id: req.user._id,
@@ -153,14 +152,12 @@ module.exports.createComment = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
       comment,
-
     });
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
-
 
 module.exports.updateComment = BigPromise(async (req, res) => {
   try {
@@ -173,7 +170,6 @@ module.exports.updateComment = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, {
       message: "Comment updated successfully",
       comment,
-
     });
   } catch (err) {
     console.error(err);
@@ -182,37 +178,64 @@ module.exports.updateComment = BigPromise(async (req, res) => {
 });
 module.exports.readCommentReplies = BigPromise(async (req, res) => {
   try {
+    const { commentId } = req.query;
+    const parentComment = await Thread.findById(commentId);
+    if (!parentComment) {
+      return ErrorHandler(res, 404, "Parent Comment not found");
+    }
+    const replies = await Thread.find({ parent_thread: commentId });
 
-    // Pending
-
-
-
-
-    ControllerResponse(res, 200,data);
+    const detailedReplies = await Promise.all(
+      replies.map(async (reply) => {
+        const user = await Users.findById(
+          reply.user_id,
+          "username occupation profile_pic"
+        );
+        const isLiked = await ThreadLikes.findOne({
+          thread_id: reply._id,
+          liked_by: req.user._id,
+        });
+        return {
+          commentId: reply._id,
+          content: reply.content,
+          images: reply.images,
+          username: user.username,
+          occupation: user.occupation,
+          userProfile: user.profile_pic,
+          likeCount: reply.like_count,
+          isLiked: !!isLiked,
+          commentCount: reply.comment_count,
+          userId: reply.user_id,
+          createdAt: reply.createdAt,
+        };
+      })
+    );
+    ControllerResponse(res, 200, { parentComment, comments: detailedReplies });
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
-
-
 module.exports.fetchRepostedUsers = BigPromise(async (req, res) => {
   try {
     const { threadId } = req.query;
     const thread = await Thread.findById(threadId);
     if (!thread) {
-      return res.status(404).json({ message: 'Thread not found' });
+      return res.status(404).json({ message: "Thread not found" });
     }
     const reposts = await RepostedThread.find({ thread_id: threadId });
     const repostedUserIds = reposts.map((repost) => repost.reposted_by);
-    const repostedUsers = await Users.find({ _id: { $in: repostedUserIds } }, 'username');
+    const repostedUsers = await Users.find(
+      { _id: { $in: repostedUserIds } },
+      "username"
+    );
 
     ControllerResponse(res, 200, repostedUsers);
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error");
   }
-})
+});
 
 module.exports.toggleThreadLike = BigPromise(async (req, res) => {
   try {
@@ -246,5 +269,3 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
-
-
