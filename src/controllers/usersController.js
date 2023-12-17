@@ -17,20 +17,23 @@ const {
     fetchAllFollowRequest,
     unFollowUser,
     fetchUserProfileDetails,
+    addBio,
     searchAPI,
 } = require("../services/usersServices");
 const router = express.Router();
 const auth = require("../middlewares/auth");
 
 
-// public apis
+// PUBLIC APIs
 router.route("/signup").post(signup);
 router.route("/login").post(login);
 router.route("/verify-email-exists").get(verifyEmailExists);
 router.route("/verify-username-exists").get(verifyUsernameExists);
 
 
-// private apis 
+// PRIVATE APIs
+
+//follow apis
 router.route("/fetch-user-details").get(auth, fetchUserDetails);
 router.route("/update-user-profile").put(auth, updateUserProfile);
 router.route("/create-follow-request").post(auth, createFollowRequest);
@@ -43,7 +46,15 @@ router.route("/fetch-following-threads").get(auth, fetchFollowingThreads);
 router.route("/fetch-latest-follow-request").get(auth, fetchLatestFollowRequests);
 router.route("/repost-thread").post(auth, repostThread);
 router.route("/fetch-all-follow-request").get(auth,fetchAllFollowRequest);
+
+
+//search api
 router.route("/search-user").get(auth,searchAPI);
+
+//user profile apis
 router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
+router.route("/add-bio").post(auth, addBio);
+
+
 module.exports = router;
  

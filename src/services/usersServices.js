@@ -403,10 +403,10 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
     
     for(let i=0;i<followers.length;i++){
       const isFollowing = await Follow.findOne({
-        followed_by: followers[i].user._id,
-        followed_to: req.user._id,
+        followed_by: req.user._id,
+        followed_to: followers[i].user._id,
       });
-      followers[i].state = isFollowing ? isFollowing.is_confirmed?2:1 : 0;
+      followers[i].state = isFollowing != null ? isFollowing.is_confirmed==true?2:1 : 0;
     }
     ControllerResponse(res, 200, followers);
   } catch (err) {
@@ -417,7 +417,9 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
 
 module.exports.fetchFollowing = BigPromise(async (req, res) => {
   try {
-     userId  = req.user._id;
+    const  userId  =req.query.userId?? req.user._id;
+
+
     const following = await Follow.aggregate([
       {
         $match: {
@@ -428,13 +430,13 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "followed_to",
+          localField: "followed_by",
           foreignField: "_id",
           as: "user",
         },
       },
       {
-        $unwind: "$user" // Unwind the user array created by $lookup
+        $unwind: "$user" 
       },
       {
         $project: {
@@ -448,8 +450,14 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
       },
     ]);
     
-    const followingCount = await Follow.countDocuments({ followed_by: new mongoose.Types.ObjectId(userId), is_confirmed: true });
-    ControllerResponse(res, 200, { following, followingCount });
+    for(let i=0;i<following.length;i++){
+      const isFollowing = await Follow.findOne({
+        followed_by: req.user._id,
+        followed_to: following[i].user._id,
+      });
+      following[i].state = isFollowing != null ? isFollowing.is_confirmed==true?2:1 : 0;
+    }
+    ControllerResponse(res, 200, following);
   } catch (err) {
 
     ErrorHandler(res, 500, "Internal Server Error");
@@ -732,7 +740,7 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
   try {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.body;
-
+  console.log(targetUserId);
     // Check if the request already exists
    const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
@@ -790,11 +798,11 @@ const userExists = await Users.findOne({
       return Error(res, 404, "Follow Request Not Found");
     }
     await Users.updateOne(
-      { _id: new mongoose.Types.ObjectId(targetUserId) },
+      { _id: new mongoose.Types.ObjectId(requestingUserId) },
       { $inc: { followers_count: 1 } }
     );
     await Users.updateOne(
-      { _id: new mongoose.Types.ObjectId(requestingUserId) },
+      { _id: new mongoose.Types.ObjectId(targetUserId) },
       { $inc: { following_count: 1 } }
     );
     await Request.save();
@@ -957,6 +965,30 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
 
 
     ControllerResponse(res, 200, {user,threadsWithUserDetails});
+
+    
+  } catch (err) {
+    console.log(err)
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+
+
+module.exports.addBio = BigPromise(async (req, res) => {
+  try {
+
+    const { bio } = req.body;
+    const user = await Users.findById(req.user._id);
+    if (!user) {
+      return ErrorHandler(res, 404, "User not found");
+    }
+    user.bio = bio;
+    await user.save();
+    
+  
+
+    ControllerResponse(res, 200, "Bio added successfully");
 
     
   } catch (err) {
