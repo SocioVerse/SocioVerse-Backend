@@ -57,19 +57,19 @@ module.exports.signup = BigPromise(async (req, res) => {
       country,
       dob: Date.parse(dob),
       profile_pic,
-      face_image_dataset:face_image_dataset??[],
+      face_image_dataset: face_image_dataset ?? [],
     });
     user.save();
     const access_token = jwt.sign({
       _id: user._id,
       phone_number,
-      email });
+      email,
+    });
     const refresh_token = jwt.sign(
       {
         _id: user._id,
         phone_number,
-        email
-
+        email,
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
@@ -77,7 +77,6 @@ module.exports.signup = BigPromise(async (req, res) => {
 
     // store refresh token in database
     await RefreshToken.create({ token: refresh_token });
-
 
     delete user._doc.password;
     return ControllerResponse(res, 200, {
@@ -113,15 +112,15 @@ module.exports.login = BigPromise(async (req, res) => {
     }
     const access_token = jwt.sign({
       _id: user._id,
-      phone_number:user.phone_number,
-      email:user.email
+      phone_number: user.phone_number,
+      email: user.email,
     });
 
     const refresh_token = jwt.sign(
       {
         _id: user._id,
         phone_number: user.phone_number,
-        email: user.email
+        email: user.email,
       },
       "30d",
       process.env.REFRESH_TOKEN_KEY
@@ -133,7 +132,7 @@ module.exports.login = BigPromise(async (req, res) => {
       message: "Login Successful!",
       ...user._doc,
       refresh_token,
-      access_token
+      access_token,
     });
   } catch (err) {
     console.log(err);
@@ -147,18 +146,14 @@ module.exports.verifyEmailExists = BigPromise(async (req, res) => {
     if (checkEmail(email) == false) {
       return ErrorHandler(res, 400, "Invalid Email");
     }
-   
-
 
     const user = await Users.findOne({ email: email });
-    if(user){
-      return ErrorHandler(res, 400, 
-        "Email already exists");
+    if (user) {
+      return ErrorHandler(res, 400, "Email already exists");
     }
     return ControllerResponse(res, 200, {
       email_exists: false,
     });
-
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -185,7 +180,6 @@ module.exports.fetchUserDetails = BigPromise(async (req, res) => {
     return ControllerResponse(res, 200, {
       ...user._doc,
     });
-
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -194,7 +188,7 @@ module.exports.fetchUserDetails = BigPromise(async (req, res) => {
 
 module.exports.updateUserProfile = BigPromise(async (req, res) => {
   const { _id } = req.user;
-  const updateData = req.body; 
+  const updateData = req.body;
   try {
     const user = await Users.findById(_id);
     if (!user) {
@@ -221,6 +215,9 @@ module.exports.updateUserProfile = BigPromise(async (req, res) => {
     if (updateData.profile_pic) {
       user.profile_pic = updateData.profile_pic;
     }
+    if (updateData.bio) {
+      user.bio = updateData.bio;
+    }
     await user.save();
     delete user._doc.password;
     return ControllerResponse(res, 200, {
@@ -234,10 +231,13 @@ module.exports.updateUserProfile = BigPromise(async (req, res) => {
 });
 module.exports.fetchLatestFollowRequests = BigPromise(async (req, res) => {
   try {
-    const  userId  = req.user._id; // Assuming this is the logged-in user's ID
+    const userId = req.user._id; // Assuming this is the logged-in user's ID
 
-    const followRequestCount = await Follow.countDocuments({ followed_to: new mongoose.Types.ObjectId(userId), is_confirmed: false });
-  
+    const followRequestCount = await Follow.countDocuments({
+      followed_to: new mongoose.Types.ObjectId(userId),
+      is_confirmed: false,
+    });
+
     // Fetch the latest two follow requests
     const latestFollowRequests = await Follow.find(
       { followed_to: new mongoose.Types.ObjectId(userId), is_confirmed: false },
@@ -265,14 +265,17 @@ module.exports.fetchLatestFollowRequests = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, { profilePics, names, followRequestCount });
   } catch (err) {
     console.error(err);
-    ErrorHandler(res, 500, 'Internal Server Error');
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
 module.exports.fetchAllFollowRequest = BigPromise(async (req, res) => {
   try {
     const user_id = req.user._id;
-    const followRequests = await Follow.find({ followed_to: user_id, is_confirmed: false });
+    const followRequests = await Follow.find({
+      followed_to: user_id,
+      is_confirmed: false,
+    });
     const data = [];
     for (const Request of followRequests) {
       const user = await Users.findById(Request.followed_by);
@@ -291,7 +294,7 @@ module.exports.fetchAllFollowRequest = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, data);
   } catch (error) {
     console.error(error);
-    ErrorHandler(res, 500, 'Internal Server Error');
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
@@ -301,19 +304,19 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
     const { query } = req.query; // Get the search query from the request query parameter
 
     if (!query) {
-      return ErrorHandler(res, 400, 'Search field is required.');
+      return ErrorHandler(res, 400, "Search field is required.");
     }
 
     const pipeline = [
       {
         $match: {
           $or: [
-            { username: { $regex: new RegExp(query, 'i') } },
-            { name: { $regex: new RegExp(query, 'i') } },
-            { email: { $regex: new RegExp(query, 'i') } }
+            { username: { $regex: new RegExp(query, "i") } },
+            { name: { $regex: new RegExp(query, "i") } },
+            { email: { $regex: new RegExp(query, "i") } },
           ],
-          _id: { $ne: new mongoose.Types.ObjectId(req.user._id) } // Exclude the logged-in user
-        }
+          _id: { $ne: new mongoose.Types.ObjectId(req.user._id) }, // Exclude the logged-in user
+        },
       },
       {
         $lookup: {
@@ -324,15 +327,20 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
               $match: {
                 $expr: {
                   $and: [
-                    { $eq: ["$followed_by", new mongoose.Types.ObjectId(req.user._id)] },
-                    { $eq: ["$followed_to", "$$userId"] }
-                  ]
-                }
-              }
-            }
+                    {
+                      $eq: [
+                        "$followed_by",
+                        new mongoose.Types.ObjectId(req.user._id),
+                      ],
+                    },
+                    { $eq: ["$followed_to", "$$userId"] },
+                  ],
+                },
+              },
+            },
           ],
-          as: "followData"
-        }
+          as: "followData",
+        },
       },
       {
         $project: {
@@ -346,30 +354,34 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
               then: 0, // Not followed
               else: {
                 $cond: {
-                  if: { $eq: [{ $arrayElemAt: ["$followData.is_confirmed", 0] }, true] },
+                  if: {
+                    $eq: [
+                      { $arrayElemAt: ["$followData.is_confirmed", 0] },
+                      true,
+                    ],
+                  },
                   then: 2, // Following and confirmed
-                  else: 1 // Sent request
-                }
-              }
-            }
-          }
-        }
-      }
+                  else: 1, // Sent request
+                },
+              },
+            },
+          },
+        },
+      },
     ];
-    
+
     const users = await Users.aggregate(pipeline);
     console.log(users);
     ControllerResponse(res, 200, users);
   } catch (error) {
     console.error(error);
-    ErrorHandler(res, 500, 'Internal Server Error');
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
 module.exports.fetchFollowers = BigPromise(async (req, res) => {
   try {
-    const  userId  =req.query.userId?? req.user._id;
-
+    const userId = req.query.userId ?? req.user._id;
 
     const followers = await Follow.aggregate([
       {
@@ -387,7 +399,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user" 
+        $unwind: "$user",
       },
       {
         $project: {
@@ -400,13 +412,14 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
         },
       },
     ]);
-    
-    for(let i=0;i<followers.length;i++){
+
+    for (let i = 0; i < followers.length; i++) {
       const isFollowing = await Follow.findOne({
         followed_by: req.user._id,
         followed_to: followers[i].user._id,
       });
-      followers[i].state = isFollowing != null ? isFollowing.is_confirmed==true?2:1 : 0;
+      followers[i].state =
+        isFollowing != null ? (isFollowing.is_confirmed == true ? 2 : 1) : 0;
     }
     ControllerResponse(res, 200, followers);
   } catch (err) {
@@ -417,8 +430,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
 
 module.exports.fetchFollowing = BigPromise(async (req, res) => {
   try {
-    const  userId  =req.query.userId?? req.user._id;
-
+    const userId = req.query.userId ?? req.user._id;
 
     const following = await Follow.aggregate([
       {
@@ -436,7 +448,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user" 
+        $unwind: "$user",
       },
       {
         $project: {
@@ -449,17 +461,17 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
         },
       },
     ]);
-    
-    for(let i=0;i<following.length;i++){
+
+    for (let i = 0; i < following.length; i++) {
       const isFollowing = await Follow.findOne({
         followed_by: req.user._id,
         followed_to: following[i].user._id,
       });
-      following[i].state = isFollowing != null ? isFollowing.is_confirmed==true?2:1 : 0;
+      following[i].state =
+        isFollowing != null ? (isFollowing.is_confirmed == true ? 2 : 1) : 0;
     }
     ControllerResponse(res, 200, following);
   } catch (err) {
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -485,14 +497,12 @@ module.exports.repostThread = BigPromise(async (req, res) => {
     await newRepost.save();
     ControllerResponse(res, 200, "Thread reposted successfully");
   } catch (err) {
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
 module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
   try {
-
     const { _id } = req.user;
 
     // Use aggregation to retrieve followingUserIds
@@ -518,9 +528,6 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     ]);
 
     console.log(followingUserIds[0]?.followingUserIds || []);
-
-
-
 
     // Aggregation to fetch the profile pics of users who posted the latest 3 comments for each thread
     const threadsWithComments = await Thread.aggregate([
@@ -640,7 +647,9 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       return thread;
     });
     // Array of user IDs from threads
-    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+    const threadUserIds = threadsWithUserDetails.map(
+      (thread) => thread.user_id
+    );
 
     // Aggregation to fetch user details for the users associated with the threads
     const users = await Users.aggregate([
@@ -659,28 +668,25 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       },
     ]);
 
-
     // Add no of comment of each thread
 
     for (let i = 0; i < threadsWithUserDetails.length; i++) {
-      const comments = await Thread.find({ parent_thread: threadsWithUserDetails[i]._id });
+      const comments = await Thread.find({
+        parent_thread: threadsWithUserDetails[i]._id,
+      });
       threadsWithUserDetails[i].comment_count = comments.length;
     }
 
-
     // Add user details with each thread
     threadsWithUserDetails.forEach((thread) => {
-
-      const user = users.find((user) => user._id.toString() === thread.user_id.toString());
+      const user = users.find(
+        (user) => user._id.toString() === thread.user_id.toString()
+      );
       delete thread.user_id;
       delete thread.latestComments;
       thread.user = user;
     });
     console.log(threadsWithUserDetails);
-
-
-
-
 
     ControllerResponse(res, 200, threadsWithUserDetails);
   } catch (err) {
@@ -689,22 +695,18 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
   }
 });
 
-
 module.exports.createFollowRequest = BigPromise(async (req, res) => {
   try {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.body;
 
     // Check if the request already exists
-   const userExists = await Users.findOne({
+    const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
-   });
-    if(!userExists){
+    });
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
-
-
-
 
     const existingRequest = await Follow.findOne({
       followed_by: new mongoose.Types.ObjectId(requestingUserId),
@@ -731,7 +733,6 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
     await followRequest.save();
     ControllerResponse(res, 200, "Follow Request Sent Succesfully");
   } catch (err) {
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -740,16 +741,14 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
   try {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.body;
-  console.log(targetUserId);
+    console.log(targetUserId);
     // Check if the request already exists
-   const userExists = await Users.findOne({
+    const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
-   });
-    if(!userExists){
+    });
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
-
-
 
     await Users.updateOne(
       { _id: new mongoose.Types.ObjectId(targetUserId) },
@@ -764,11 +763,8 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
       followed_to: new mongoose.Types.ObjectId(targetUserId),
     });
 
-    
-   
     ControllerResponse(res, 200, "Follow Request Sent Succesfully");
   } catch (err) {
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -778,11 +774,10 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.body;
 
-
-const userExists = await Users.findOne({
+    const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
-   });
-    if(!userExists){
+    });
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
     const Request = await Follow.findOne({
@@ -792,9 +787,7 @@ const userExists = await Users.findOne({
 
     if (Request) {
       Request.is_confirmed = true;
-
-    }
-    else {
+    } else {
       return Error(res, 404, "Follow Request Not Found");
     }
     await Users.updateOne(
@@ -808,7 +801,6 @@ const userExists = await Users.findOne({
     await Request.save();
     ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -817,13 +809,13 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
   try {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.query;
- // Check if the request already exists
- const userExists = await Users.findOne({
-  _id: new mongoose.Types.ObjectId(targetUserId),
-});
-if(!userExists){
-  return ErrorHandler(res, 404, "User not found");
-}
+    // Check if the request already exists
+    const userExists = await Users.findOne({
+      _id: new mongoose.Types.ObjectId(targetUserId),
+    });
+    if (!userExists) {
+      return ErrorHandler(res, 404, "User not found");
+    }
     const existingRequest = await Follow.findOne({
       followed_by: targetUserId,
       followed_to: requestingUserId,
@@ -839,32 +831,30 @@ if(!userExists){
       ErrorHandler(res, 404, "Follow Request Not Found");
     }
   } catch (err) {
-
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
 module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
   try {
-  console.log(req.query);
-    const  userId  = req.query.userId?? req.user._id;
+    console.log(req.query);
+    const userId = req.query.userId ?? req.user._id;
     console.log(userId);
-    const user = await Users.findById(userId,
-      {
-        name: 1,
-        username: 1,
-        occupation: 1,
-        profile_pic: 1,
-        bio: 1,
-        followers_count: 1,
-        following_count: 1,
-        post_count: 1,
-        bio: 1,
-      });
+    const user = await Users.findById(userId, {
+      name: 1,
+      username: 1,
+      occupation: 1,
+      profile_pic: 1,
+      bio: 1,
+      followers_count: 1,
+      following_count: 1,
+      post_count: 1,
+      bio: 1,
+    });
     if (!user) {
       return ErrorHandler(res, 404, "User not found");
     }
-    
+
     const threadsWithUserDetails = await Thread.aggregate([
       {
         $match: {
@@ -918,21 +908,25 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
         },
       },
     ]);
-    
+
     // Add no of comments for each thread
     for (let i = 0; i < threadsWithUserDetails.length; i++) {
       const isLiked = await ThreadLikes.findOne({
         thread_id: threadsWithUserDetails[i]._id,
         liked_by: req.user._id,
       });
-      const comments = await Thread.find({ parent_thread: threadsWithUserDetails[i]._id });
+      const comments = await Thread.find({
+        parent_thread: threadsWithUserDetails[i]._id,
+      });
       threadsWithUserDetails[i].comment_count = comments.length;
       threadsWithUserDetails[i].isLiked = isLiked ? true : false;
     }
-    
+
     // Array of user IDs from threads
-    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
-    
+    const threadUserIds = threadsWithUserDetails.map(
+      (thread) => thread.user_id
+    );
+
     // Aggregation to fetch user details for the users associated with the threads
     const users = await Users.aggregate([
       {
@@ -949,35 +943,28 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
         },
       },
     ]);
-    
+
     // Add user details with each thread
     threadsWithUserDetails.forEach((thread) => {
-      const user = users.find((user) => user._id.toString() === thread.user_id.toString());
+      const user = users.find(
+        (user) => user._id.toString() === thread.user_id.toString()
+      );
       delete thread.user_id;
       delete thread.latestComments;
       thread.user = user;
     });
-    
+
     console.log(threadsWithUserDetails);
-    
 
-
-
-
-    ControllerResponse(res, 200, {user,threadsWithUserDetails});
-
-    
+    ControllerResponse(res, 200, { user, threadsWithUserDetails });
   } catch (err) {
-    console.log(err)
+    console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
-
-
 module.exports.addBio = BigPromise(async (req, res) => {
   try {
-
     const { bio } = req.body;
     const user = await Users.findById(req.user._id);
     if (!user) {
@@ -985,14 +972,10 @@ module.exports.addBio = BigPromise(async (req, res) => {
     }
     user.bio = bio;
     await user.save();
-    
-  
 
     ControllerResponse(res, 200, "Bio added successfully");
-
-    
   } catch (err) {
-    console.log(err)
+    console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
