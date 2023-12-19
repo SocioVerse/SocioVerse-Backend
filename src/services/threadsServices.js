@@ -47,11 +47,11 @@ module.exports.createThread = BigPromise(async (req, res) => {
         isBase: false,
       });
 
-      await Users.findByIdAndUpdate(req.user._id, {
-        $inc: { post_count: 1 },
-      });
+      
       await newComment.save();
-    }
+    }await Users.findByIdAndUpdate(req.user._id, {
+      $inc: { post_count: 1 },
+    });
     ControllerResponse(res, 200, {
       message: "Thread created successfully",
       thread: newThread,
@@ -134,24 +134,35 @@ module.exports.createComment = BigPromise(async (req, res) => {
       _id: req.body.threadId,
       isBase: true,
     });
-
     console.log(isBaseThreadPrivate);
-    const { threadId, content, images } = req.body;
-    //Increment comment count of parent thread
-    await Thread.findByIdAndUpdate(threadId, {
+    await Thread.findByIdAndUpdate(req.body.threadId, {
       $inc: { comment_count: 1 },
     });
-    const comment = await Thread({
+    const {threadId, content, images, comments } = req.body;
+    const newThread = new Thread({
       user_id: req.user._id,
-      parent_thread: threadId,
       content,
+      parent_thread: threadId,
       images,
-      is_private: isBaseThreadPrivate.is_private,
+      is_private: false,
       isBase: false,
-    }).save();
+      comment_count: comments.length,
+    });
+    await newThread.save();
+    for (let i = 0; i < comments.length; i++) {
+      const newComment = new Thread({
+        user_id: req.user._id,
+        parent_thread: newThread._id,
+        content: comments[i].content,
+        images: comments[i].images,
+        is_private: newThread.is_private,
+        isBase: false,
+      });
+      await newComment.save();
+    }
+    
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
-      comment,
     });
   } catch (err) {
     console.error(err);

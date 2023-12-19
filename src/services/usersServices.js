@@ -931,7 +931,7 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
         },
       },
     ]);
-
+    
     // Add no of comments for each thread
     for (let i = 0; i < threadsWithUserDetails.length; i++) {
       const isLiked = await ThreadLikes.findOne({
