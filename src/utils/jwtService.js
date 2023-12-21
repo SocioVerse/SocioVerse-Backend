@@ -7,9 +7,8 @@ class JwtService {
     return token;
   }
 
-  static verify(token) {
-    console.log(jwt.verify(token, secret));
-    return doubleDecryptData(jwt.verify(token, secret));
+  static verify(token,secret = process.env.ACCESS_TOKEN_KEY) {
+    return  jwt.verify(doubleDecryptData(token), secret);
   }
 }
 
