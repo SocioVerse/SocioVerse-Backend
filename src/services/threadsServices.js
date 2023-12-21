@@ -47,11 +47,11 @@ module.exports.createThread = BigPromise(async (req, res) => {
         isBase: false,
       });
 
-      await Users.findByIdAndUpdate(req.user._id, {
-        $inc: { post_count: 1 },
-      });
+      
       await newComment.save();
-    }
+    }await Users.findByIdAndUpdate(req.user._id, {
+      $inc: { post_count: 1 },
+    });
     ControllerResponse(res, 200, {
       message: "Thread created successfully",
       thread: newThread,
@@ -134,24 +134,35 @@ module.exports.createComment = BigPromise(async (req, res) => {
       _id: req.body.threadId,
       isBase: true,
     });
-
     console.log(isBaseThreadPrivate);
-    const { threadId, content, images } = req.body;
-    //Increment comment count of parent thread
-    await Thread.findByIdAndUpdate(threadId, {
+    await Thread.findByIdAndUpdate(req.body.threadId, {
       $inc: { comment_count: 1 },
     });
-    const comment = await Thread({
+    const {threadId, content, images, comments } = req.body;
+    const newThread = new Thread({
       user_id: req.user._id,
-      parent_thread: threadId,
       content,
+      parent_thread: threadId,
       images,
-      is_private: isBaseThreadPrivate.is_private,
+      is_private: false,
       isBase: false,
-    }).save();
+      comment_count: comments.length,
+    });
+    await newThread.save();
+    for (let i = 0; i < comments.length; i++) {
+      const newComment = new Thread({
+        user_id: req.user._id,
+        parent_thread: newThread._id,
+        content: comments[i].content,
+        images: comments[i].images,
+        is_private: newThread.is_private,
+        isBase: false,
+      });
+      await newComment.save();
+    }
+    
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
-      comment,
     });
   } catch (err) {
     console.error(err);
@@ -183,34 +194,120 @@ module.exports.readCommentReplies = BigPromise(async (req, res) => {
     if (!parentComment) {
       return ErrorHandler(res, 404, "Parent Comment not found");
     }
-    const replies = await Thread.find({ parent_thread: commentId });
+    // const replies = await Thread.find({ parent_thread: commentId });
 
-    const detailedReplies = await Promise.all(
-      replies.map(async (reply) => {
-        const user = await Users.findById(
-          reply.user_id,
-          "username occupation profile_pic"
-        );
-        const isLiked = await ThreadLikes.findOne({
-          thread_id: reply._id,
-          liked_by: req.user._id,
-        });
-        return {
-          commentId: reply._id,
-          content: reply.content,
-          images: reply.images,
-          username: user.username,
-          occupation: user.occupation,
-          userProfile: user.profile_pic,
-          likeCount: reply.like_count,
-          isLiked: !!isLiked,
-          commentCount: reply.comment_count,
-          userId: reply.user_id,
-          createdAt: reply.createdAt,
-        };
-      })
-    );
-    ControllerResponse(res, 200, { parentComment, comments: detailedReplies });
+    // const detailedReplies = await Promise.all(
+    //   replies.map(async (reply) => {
+    //     const user = await Users.findById(
+    //       reply.user_id,
+    //       "username occupation profile_pic"
+    //     );
+    //     const isLiked = await ThreadLikes.findOne({
+    //       thread_id: reply._id,
+    //       liked_by: req.user._id,
+    //     });
+    //     return {
+    //       ...reply._doc,
+    //       user,
+    //       isLiked: !!isLiked,
+    //     };
+    //   })
+    // );
+    // ControllerResponse(res, 200, detailedReplies );
+    const threadsWithUserDetails = await Thread.aggregate([
+      {
+        $match: {
+          parent_thread: new mongoose.Types.ObjectId(commentId),
+          _id: { $ne: new mongoose.Types.ObjectId(commentId) },
+        
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $lookup: {
+          from: "threads",
+          let: { parentThreadId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+              },
+            },
+            {
+              $sort: { createdAt: -1 },
+            },
+            {
+              $limit: 3,
+            },
+          ],
+          as: "latestComments",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "latestComments.user_id",
+          foreignField: "_id",
+          as: "commentUsers",
+        },
+      },
+      {
+        $addFields: {
+          commentUsers: {
+            $map: {
+              input: "$commentUsers",
+              as: "commentUser",
+              in: {
+                _id: "$$commentUser._id",
+                profile_pic: "$$commentUser.profile_pic",
+              },
+            },
+          },
+        },
+      },
+    ]);
+
+    // Add no of comments for each thread
+    for (let i = 0; i < threadsWithUserDetails.length; i++) {
+      const isLiked = await ThreadLikes.findOne({
+        thread_id: threadsWithUserDetails[i]._id,
+        liked_by: req.user._id,
+      });
+      threadsWithUserDetails[i].isLiked = isLiked ? true : false;
+    }
+
+    // Array of user IDs from threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+
+    // Aggregation to fetch user details for the users associated with the threads
+    const users = await Users.aggregate([
+      {
+        $match: {
+          _id: { $in: threadUserIds },
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          username: 1,
+          occupation: 1,
+          profile_pic: 1,
+        },
+      },
+    ]);
+
+    // Add user details with each thread
+    threadsWithUserDetails.forEach((thread) => {
+      const user = users.find((user) => user._id.toString() === thread.user_id.toString());
+      delete thread.user_id;
+      delete thread.latestComments;
+      thread.user = user;
+    });
+
+    console.log(threadsWithUserDetails);
+    ControllerResponse(res, 200, threadsWithUserDetails);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");

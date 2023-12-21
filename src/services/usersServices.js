@@ -147,9 +147,12 @@ module.exports.verifyEmailExists = BigPromise(async (req, res) => {
       return ErrorHandler(res, 400, "Invalid Email");
     }
 
+
+
     const user = await Users.findOne({ email: email });
-    if (user) {
-      return ErrorHandler(res, 400, "Email already exists");
+    if(user){
+      return ErrorHandler(res, 400,
+        "Email already exists");
     }
     return ControllerResponse(res, 200, {
       email_exists: false,
@@ -399,7 +402,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user",
+        $unwind: "$user"
       },
       {
         $project: {
@@ -413,7 +416,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
       },
     ]);
 
-    for (let i = 0; i < followers.length; i++) {
+    for(let i=0;i<followers.length;i++){
       const isFollowing = await Follow.findOne({
         followed_by: req.user._id,
         followed_to: followers[i].user._id,
@@ -448,7 +451,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user",
+        $unwind: "$user"
       },
       {
         $project: {
@@ -462,7 +465,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
       },
     ]);
 
-    for (let i = 0; i < following.length; i++) {
+    for(let i=0;i<following.length;i++){
       const isFollowing = await Follow.findOne({
         followed_by: req.user._id,
         followed_to: following[i].user._id,
@@ -571,7 +574,7 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ["$$parentThreadId", "$parent_thread"] },
+                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
               },
             },
             {
@@ -671,10 +674,10 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     // Add no of comment of each thread
 
     for (let i = 0; i < threadsWithUserDetails.length; i++) {
-      const comments = await Thread.find({
-        parent_thread: threadsWithUserDetails[i]._id,
+      const comments = await Thread.countDocuments({ parent_thread: threadsWithUserDetails[i]._id,
       });
-      threadsWithUserDetails[i].comment_count = comments.length;
+    threadsWithUserDetails[i].comment_count = comments-1 ;
+    
     }
 
     // Add user details with each thread
@@ -704,7 +707,7 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if (!userExists) {
+    if(!userExists){
       return ErrorHandler(res, 404, "User not found");
     }
 
@@ -746,7 +749,7 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if (!userExists) {
+    if(!userExists){
       return ErrorHandler(res, 404, "User not found");
     }
 
@@ -763,6 +766,8 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
       followed_to: new mongoose.Types.ObjectId(targetUserId),
     });
 
+
+
     ControllerResponse(res, 200, "Follow Request Sent Succesfully");
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error");
@@ -774,10 +779,11 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.body;
 
+
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if (!userExists) {
+    if(!userExists){
       return ErrorHandler(res, 404, "User not found");
     }
     const Request = await Follow.findOne({
@@ -813,7 +819,7 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if (!userExists) {
+    if(!userExists){
       return ErrorHandler(res, 404, "User not found");
     }
     const existingRequest = await Follow.findOne({
@@ -838,7 +844,7 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
 module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
   try {
     console.log(req.query);
-    const userId = req.query.userId ?? req.user._id;
+    const  userId  = req.query.userId?? req.user._id;
     console.log(userId);
     const user = await Users.findById(userId, {
       name: 1,
@@ -854,13 +860,30 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
     if (!user) {
       return ErrorHandler(res, 404, "User not found");
     }
+    const threadsQuery = {
+      user_id: new mongoose.Types.ObjectId(userId),
+
+      isBase: true,
+    };
+    if (req.user._id.toString() != userId) {
+      const isFollowing = await Follow.findOne({
+        followed_by: req.user._id,
+        followed_to: userId,
+      });
+      user._doc.state = isFollowing != null ? isFollowing.is_confirmed == true ? 2 : 1 : 0;
+
+
+    }
+
+    if (user._doc.state == 0 || user._doc.state == 1) {
+      threadsQuery.is_private = false;
+    }
+
+
 
     const threadsWithUserDetails = await Thread.aggregate([
       {
-        $match: {
-          user_id: new mongoose.Types.ObjectId(userId),
-          isBase: true,
-        },
+        $match: threadsQuery,
       },
       {
         $sort: { createdAt: -1 },
@@ -872,7 +895,7 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                $expr: { $eq: ["$$parentThreadId", "$parent_thread"] },
+                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
               },
             },
             {
@@ -908,24 +931,21 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
         },
       },
     ]);
-
+    
     // Add no of comments for each thread
     for (let i = 0; i < threadsWithUserDetails.length; i++) {
       const isLiked = await ThreadLikes.findOne({
         thread_id: threadsWithUserDetails[i]._id,
         liked_by: req.user._id,
       });
-      const comments = await Thread.find({
-        parent_thread: threadsWithUserDetails[i]._id,
-      });
-      threadsWithUserDetails[i].comment_count = comments.length;
+      const comments = await Thread.countDocuments({ parent_thread: threadsWithUserDetails[i]._id,
+        });
+      threadsWithUserDetails[i].comment_count = comments-1 ;
       threadsWithUserDetails[i].isLiked = isLiked ? true : false;
     }
 
     // Array of user IDs from threads
-    const threadUserIds = threadsWithUserDetails.map(
-      (thread) => thread.user_id
-    );
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
     // Aggregation to fetch user details for the users associated with the threads
     const users = await Users.aggregate([
@@ -956,7 +976,11 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
 
     console.log(threadsWithUserDetails);
 
+
+
     ControllerResponse(res, 200, { user, threadsWithUserDetails });
+
+
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -973,7 +997,11 @@ module.exports.addBio = BigPromise(async (req, res) => {
     user.bio = bio;
     await user.save();
 
+
+
     ControllerResponse(res, 200, "Bio added successfully");
+
+
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
