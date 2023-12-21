@@ -269,3 +269,91 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+
+module.exports.getLikedThreads = BigPromise(async (req, res) => {
+  try {
+    const likedThreads = await ThreadLikes.find({ liked_by: req.user._id });
+    const threadIds = likedThreads.map((like) => like.thread_id);
+    const threads = await Thread.find({ _id: { $in: threadIds } });
+    const populatedThreads = await Promise.all(
+      threads.map(async (thread) => {
+        const user = await Users.findById(
+          thread.user_id,
+          "username occupation profile_pic"
+        );
+        return {
+          threadId: thread._id,
+          content: thread.content,
+          images: thread.images,
+          is_private: thread.is_private,
+          isBase: thread.isBase,
+          like_count: thread.like_count,
+          comment_count: thread.comment_count,
+          user: {
+            userId: user._id,
+            username: user.username,
+            occupation: user.occupation,
+            profile_pic: user.profile_pic,
+          },
+          createdAt: thread.createdAt,
+          updatedAt: thread.updatedAt,
+        };
+      })
+    );
+    ControllerResponse(res, 200, populatedThreads);
+  } catch (err) {
+    ErrorHandler(res, 500, "Internal Server Error", err);
+  }
+});
+
+module.exports.toggleThreadSave = BigPromise(async (req, res) => {
+  try {
+    const { threadId } = req.body;
+    const savedBy = req.user._id;
+    const thread = await Thread.findById(threadId);
+    const isSaved = thread.saved_by.includes(savedBy);
+    if (isSaved) {
+      thread.saved_by.pull(savedBy);
+    } else {
+      thread.saved_by.push(savedBy);
+    }
+    await thread.save();
+    ControllerResponse(res, 200, "Thread save toggled successfully");
+  } catch (err) {
+    ErrorHandler(res, 500, "Internal Server Error", err);
+  }
+});
+
+module.exports.getSavedThreads = BigPromise(async (req, res) => {
+  try {
+    const savedThreads = await Thread.find({ saved_by: req.user._id });
+    const populatedSavedThreads = await Promise.all(
+      savedThreads.map(async (thread) => {
+        const user = await Users.findById(
+          thread.user_id,
+          "username occupation profile_pic"
+        );
+        return {
+          threadId: thread._id,
+          content: thread.content,
+          images: thread.images,
+          is_private: thread.is_private,
+          isBase: thread.isBase,
+          like_count: thread.like_count,
+          comment_count: thread.comment_count,
+          user: {
+            userId: user._id,
+            username: user.username,
+            occupation: user.occupation,
+            profile_pic: user.profile_pic,
+          },
+          createdAt: thread.createdAt,
+          updatedAt: thread.updatedAt,
+        };
+      })
+    );
+    ControllerResponse(res, 200, populatedSavedThreads);
+  } catch (err) {
+    ErrorHandler(res, 500, "Internal Server Error", err);
+  }
+});
