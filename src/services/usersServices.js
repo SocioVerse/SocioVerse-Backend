@@ -445,7 +445,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
       {
         $lookup: {
           from: "users",
-          localField: "followed_by",
+          localField: "followed_to",
           foreignField: "_id",
           as: "user",
         },
