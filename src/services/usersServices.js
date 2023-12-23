@@ -950,3 +950,98 @@ module.exports.addBio = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
+  try {
+    const  userId  = req.query.userId?? req.user._id;
+    const repostedThreadsIds = await RepostedThread.find({
+      reposted_by: userId,
+    }).select("thread_id");
+    const threadsWithUserDetails = await Thread.aggregate([
+      {
+        $match: {
+          _id: { $in: repostedThreadsIds.map((thread) => thread.thread_id) },
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $lookup: {
+          from: "threads",
+          let: { parentThreadId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+              },
+            },
+            {
+              $sort: { createdAt: -1 },
+            },
+            {
+              $limit: 3,
+            },
+          ],
+          as: "latestComments",
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "latestComments.user_id",
+          foreignField: "_id",
+          as: "commentUsers",
+        },
+      },
+      {
+        $addFields: {
+          commentUsers: {
+            $map: {
+              input: "$commentUsers",
+              as: "commentUser",
+              in: {
+                _id: "$$commentUser._id",
+                profile_pic: "$$commentUser.profile_pic",
+              },
+            },
+          },
+        },
+      },
+    ]);
+    
+  // Array of user IDs from threads
+const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+
+// Fetch user details for the users associated with the threads
+const users = await Users.findById(userId, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
+
+// Fetch likes for the threads by the current user
+const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
+
+// Fetch reposts by the current user
+const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
+
+// Map thread likes and reposts for quick access
+const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
+const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
+
+// Add comment count, like status, and user details to threadsWithUserDetails
+for (const thread of threadsWithUserDetails) {
+  thread.isReposted = !!repostsMap.get(thread._id.toString());
+  thread.isLiked = !!threadLikesMap.get(thread._id.toString());
+  thread.user = users;
+  delete thread.user_id;
+  delete thread.latestComments;
+}
+
+
+
+
+    ControllerResponse(res, 200, threadsWithUserDetails );
+
+
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});

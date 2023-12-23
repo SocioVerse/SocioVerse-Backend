@@ -19,6 +19,7 @@ const {
     fetchUserProfileDetails,
     addBio,
     searchAPI,
+    fetchRepostedThread,
 } = require("../services/usersServices");
 const router = express.Router();
 const auth = require("../middlewares/auth");
@@ -53,6 +54,7 @@ router.route("/search-user").get(auth,searchAPI);
 
 //user profile apis
 router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
+router.route("/fetch-reposted-thread").get(auth, fetchRepostedThread);
 router.route("/add-bio").post(auth, addBio);
 
 
