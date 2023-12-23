@@ -46,11 +46,11 @@ router.route("/fetch-following").get(auth, fetchFollowing);
 router.route("/fetch-following-threads").get(auth, fetchFollowingThreads);
 router.route("/fetch-latest-follow-request").get(auth, fetchLatestFollowRequests);
 router.route("/toogle-repost-thread").post(auth, toogleRepostThread);
-router.route("/fetch-all-follow-request").get(auth,fetchAllFollowRequest);
+router.route("/fetch-all-follow-request").get(auth, fetchAllFollowRequest);
 
 
 //search api
-router.route("/search-user").get(auth,searchAPI);
+router.route("/search-user").get(auth, searchAPI);
 
 //user profile apis
 router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
@@ -59,4 +59,3 @@ router.route("/add-bio").post(auth, addBio);
 
 
 module.exports = router;
- 

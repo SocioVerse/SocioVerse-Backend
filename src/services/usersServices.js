@@ -150,7 +150,7 @@ module.exports.verifyEmailExists = BigPromise(async (req, res) => {
 
 
     const user = await Users.findOne({ email: email });
-    if(user){
+    if (user) {
       return ErrorHandler(res, 400,
         "Email already exists");
     }
@@ -404,7 +404,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
       },
     ]);
 
-    for(let i=0;i<followers.length;i++){
+    for (let i = 0; i < followers.length; i++) {
       const isFollowing = await Follow.findOne({
         followed_by: req.user._id,
         followed_to: followers[i].user._id,
@@ -454,13 +454,13 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
       },
     ]);
 
-    for(let i=0;i<following.length;i++){
+    for (let i = 0; i < following.length; i++) {
       const isFollowing = await Follow.findOne({
         followed_by: req.user._id,
         followed_to: following[i].user._id,
       });
-      following[i].state =following[i].user._id.toString() == req.user._id.toString() ? 3 :
-        isFollowing != null ?  (isFollowing.is_confirmed == true ? 2 : 1) : 0;
+      following[i].state = following[i].user._id.toString() == req.user._id.toString() ? 3 :
+        isFollowing != null ? (isFollowing.is_confirmed == true ? 2 : 1) : 0;
     }
     following.sort((a, b) => b.state - a.state);
     ControllerResponse(res, 200, following);
@@ -607,45 +607,45 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     ]);
 
     // Array of user IDs from comment users
-const commentUserIds = new Set();
-const threadsWithUserDetails = threadsWithComments.map((thread) => {
-  thread.commentUsers = thread.commentUsers.map((commentUser) => {
-    commentUserIds.add(commentUser._id);
-    return { _id: commentUser._id };
-  });
-  return thread;
-});
+    const commentUserIds = new Set();
+    const threadsWithUserDetails = threadsWithComments.map((thread) => {
+      thread.commentUsers = thread.commentUsers.map((commentUser) => {
+        commentUserIds.add(commentUser._id);
+        return { _id: commentUser._id };
+      });
+      return thread;
+    });
 
-// Fetch comment users' details
-const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+    // Fetch comment users' details
+    const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
 
-// Map comment users by their _id
-const commentUserMap = new Map(commentUsers.map((commentUser) => [commentUser._id.toString(), commentUser]));
+    // Map comment users by their _id
+    const commentUserMap = new Map(commentUsers.map((commentUser) => [commentUser._id.toString(), commentUser]));
 
-// Add comment user details to threadsWithUserDetails
-threadsWithUserDetails.forEach((thread) => {
-  thread.commentUsers = thread.commentUsers.map((commentUser) => ({
-    _id: commentUser._id,
-    profile_pic: commentUserMap.get(commentUser._id.toString())?.profile_pic || null,
-  }));
-});
+    // Add comment user details to threadsWithUserDetails
+    threadsWithUserDetails.forEach((thread) => {
+      thread.commentUsers = thread.commentUsers.map((commentUser) => ({
+        _id: commentUser._id,
+        profile_pic: commentUserMap.get(commentUser._id.toString())?.profile_pic || null,
+      }));
+    });
 
-// Array of user IDs from threads
-const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+    // Array of user IDs from threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-// Fetch user details for the users associated with the threads
-const users = await Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
+    // Fetch user details for the users associated with the threads
+    const users = await Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
 
-// Add comment count and other details to threadsWithUserDetails
-for (const thread of threadsWithUserDetails) {
-  thread.isReposted = !!(await RepostedThread.findOne({ thread_id: thread._id, reposted_by: req.user._id }));
-  const user = users.find((u) => u._id.toString() === thread.user_id.toString());
-  thread.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
-  delete thread.user_id;
-  delete thread.latestComments;
-}
+    // Add comment count and other details to threadsWithUserDetails
+    for (const thread of threadsWithUserDetails) {
+      thread.isReposted = !!(await RepostedThread.findOne({ thread_id: thread._id, reposted_by: req.user._id }));
+      const user = users.find((u) => u._id.toString() === thread.user_id.toString());
+      thread.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
+      delete thread.user_id;
+      delete thread.latestComments;
+    }
 
-console.log(threadsWithUserDetails);
+    console.log(threadsWithUserDetails);
 
     ControllerResponse(res, 200, threadsWithUserDetails);
   } catch (err) {
@@ -663,7 +663,7 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if(!userExists){
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
 
@@ -705,7 +705,7 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if(!userExists){
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
 
@@ -739,7 +739,7 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if(!userExists){
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
     const Request = await Follow.findOne({
@@ -775,7 +775,7 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
     });
-    if(!userExists){
+    if (!userExists) {
       return ErrorHandler(res, 404, "User not found");
     }
     const existingRequest = await Follow.findOne({
@@ -800,7 +800,7 @@ module.exports.deleteFollowRequest = BigPromise(async (req, res) => {
 module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
   try {
     console.log(req.query);
-    const  userId  = req.query.userId?? req.user._id;
+    const userId = req.query.userId ?? req.user._id;
     console.log(userId);
     const user = await Users.findById(userId, {
       name: 1,
@@ -891,32 +891,32 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
         },
       },
     ]);
-    
-  // Array of user IDs from threads
-const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-// Fetch user details for the users associated with the threads
-const users = await Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
+    // Array of user IDs from threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-// Fetch likes for the threads by the current user
-const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
+    // Fetch user details for the users associated with the threads
+    const users = await Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
 
-// Fetch reposts by the current user
-const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
+    // Fetch likes for the threads by the current user
+    const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
 
-// Map thread likes and reposts for quick access
-const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
-const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
+    // Fetch reposts by the current user
+    const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
 
-// Add comment count, like status, and user details to threadsWithUserDetails
-for (const thread of threadsWithUserDetails) {
-  thread.isReposted = !!repostsMap.get(thread._id.toString());
-  thread.isLiked = !!threadLikesMap.get(thread._id.toString());
-  const user = users.find((u) => u._id.toString() === thread.user_id.toString());
-  thread.user = { ...user.toObject(), isOwner: user._id.toString() === req.user._id };
-  delete thread.user_id;
-  delete thread.latestComments;
-}
+    // Map thread likes and reposts for quick access
+    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
+    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
+
+    // Add comment count, like status, and user details to threadsWithUserDetails
+    for (const thread of threadsWithUserDetails) {
+      thread.isReposted = !!repostsMap.get(thread._id.toString());
+      thread.isLiked = !!threadLikesMap.get(thread._id.toString());
+      const user = users.find((u) => u._id.toString() === thread.user_id.toString());
+      thread.user = { ...user.toObject(), isOwner: user._id.toString() === req.user._id };
+      delete thread.user_id;
+      delete thread.latestComments;
+    }
 
 
 
@@ -952,7 +952,7 @@ module.exports.addBio = BigPromise(async (req, res) => {
 });
 module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
   try {
-    const  userId  = req.query.userId?? req.user._id;
+    const userId = req.query.userId ?? req.user._id;
     const repostedThreadsIds = await RepostedThread.find({
       reposted_by: userId,
     }).select("thread_id");
@@ -1008,36 +1008,36 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
         },
       },
     ]);
-    
-  // Array of user IDs from threads
-const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-// Fetch user details for the users associated with the threads
-const users = await Users.findById(userId, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
+    // Array of user IDs from threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-// Fetch likes for the threads by the current user
-const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
+    // Fetch user details for the users associated with the threads
+    const users = await Users.findById(userId, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
 
-// Fetch reposts by the current user
-const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
+    // Fetch likes for the threads by the current user
+    const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
 
-// Map thread likes and reposts for quick access
-const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
-const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
+    // Fetch reposts by the current user
+    const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadsWithUserDetails.map((thread) => thread._id) } });
 
-// Add comment count, like status, and user details to threadsWithUserDetails
-for (const thread of threadsWithUserDetails) {
-  thread.isReposted = !!repostsMap.get(thread._id.toString());
-  thread.isLiked = !!threadLikesMap.get(thread._id.toString());
-  thread.user = users;
-  delete thread.user_id;
-  delete thread.latestComments;
-}
+    // Map thread likes and reposts for quick access
+    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
+    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
 
-
+    // Add comment count, like status, and user details to threadsWithUserDetails
+    for (const thread of threadsWithUserDetails) {
+      thread.isReposted = !!repostsMap.get(thread._id.toString());
+      thread.isLiked = !!threadLikesMap.get(thread._id.toString());
+      thread.user = users;
+      delete thread.user_id;
+      delete thread.latestComments;
+    }
 
 
-    ControllerResponse(res, 200, threadsWithUserDetails );
+
+
+    ControllerResponse(res, 200, threadsWithUserDetails);
 
 
   } catch (err) {

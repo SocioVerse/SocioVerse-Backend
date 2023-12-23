@@ -10,7 +10,7 @@ const hashPassword = async (password) => {
 };
 
 // Function to verify a password
-const verifyPassword = async  (password, hashedPassword) => {
+const verifyPassword = async (password, hashedPassword) => {
     return await bcrypt.compare(password, doubleDecryptData(hashedPassword))
 };
 

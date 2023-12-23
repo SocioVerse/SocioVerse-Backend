@@ -264,41 +264,41 @@ module.exports.readCommentReplies = BigPromise(async (req, res) => {
     ]);
 
     // Array of thread IDs
-const threadIds = threadsWithUserDetails.map((thread) => thread._id);
+    const threadIds = threadsWithUserDetails.map((thread) => thread._id);
 
-// Find likes for threads by the current user
-const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } });
+    // Find likes for threads by the current user
+    const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } });
 
-// Map thread likes for quick access
-const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
+    // Map thread likes for quick access
+    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
 
-// Fetch reposts by the current user
-const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } });
+    // Fetch reposts by the current user
+    const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } });
 
-// Map reposts for quick access
-const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
+    // Map reposts for quick access
+    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
 
-// Array of user IDs from threads
-const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+    // Array of user IDs from threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
 
-// Fetch user details for the users associated with the threads
-const users = await Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
+    // Fetch user details for the users associated with the threads
+    const users = await Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
 
-// Iterate through threads and add necessary details
-for (const thread of threadsWithUserDetails) {
-  const isLiked = threadLikesMap.get(thread._id.toString()) || false;
-  const isReposted = repostsMap.get(thread._id.toString()) || false;
+    // Iterate through threads and add necessary details
+    for (const thread of threadsWithUserDetails) {
+      const isLiked = threadLikesMap.get(thread._id.toString()) || false;
+      const isReposted = repostsMap.get(thread._id.toString()) || false;
 
-  thread.isLiked = isLiked;
-  thread.isReposted = isReposted;
+      thread.isLiked = isLiked;
+      thread.isReposted = isReposted;
 
-  const user = users.find((u) => u._id.toString() === thread.user_id.toString());
-  thread.user = { ...user.toObject(), isOwner: user._id.toString() === req.user._id };
-  delete thread.user_id;
-  delete thread.latestComments;
-}
+      const user = users.find((u) => u._id.toString() === thread.user_id.toString());
+      thread.user = { ...user.toObject(), isOwner: user._id.toString() === req.user._id };
+      delete thread.user_id;
+      delete thread.latestComments;
+    }
 
-console.log(threadsWithUserDetails);
+    console.log(threadsWithUserDetails);
     ControllerResponse(res, 200, threadsWithUserDetails);
   } catch (err) {
     console.error(err);
