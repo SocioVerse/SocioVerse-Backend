@@ -12,7 +12,7 @@ const threadLikesSchema = new Schema(
             ref: "userSchema",
             required: true,
         }
-        
+
     },
     {
         timestamps: true,

@@ -17,7 +17,7 @@ exports.refresh = BigPromise(async (req, res) => {
         }
 
         // get _id & phone_number
-        const { _id, phone_number,email } = jwt.verify(refreshToken.token, process.env.REFRESH_TOKEN_KEY)
+        const { _id, phone_number, email } = jwt.verify(refreshToken.token, process.env.REFRESH_TOKEN_KEY)
 
         // generate access token
         const access_token = jwt.sign({
