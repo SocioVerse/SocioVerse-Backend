@@ -43,12 +43,10 @@ const threadsSchema = new Schema(
       type: Boolean,
       default: true,
     },
-    saved_by: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "userSchema",
-      },
-    ],
+    saved_count: {
+      type: Number,
+      default: 0,
+    },
   },
   {
     timestamps: true,

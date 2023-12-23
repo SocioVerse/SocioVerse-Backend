@@ -8,6 +8,7 @@ const Thread = require("../models/threadsModel");
 const Follow = require("../models/follows");
 const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
+const ThreadSaves = require("../models/threadSaves");
 const { default: mongoose } = require("mongoose");
 
 //Helper Functions
@@ -53,9 +54,9 @@ module.exports.createThread = BigPromise(async (req, res) => {
         isBase: false,
       });
 
-      
       await newComment.save();
-    }await Users.findByIdAndUpdate(req.user._id, {
+    }
+    await Users.findByIdAndUpdate(req.user._id, {
       $inc: { post_count: 1 },
     });
     ControllerResponse(res, 200, {
@@ -147,7 +148,7 @@ module.exports.createComment = BigPromise(async (req, res) => {
     await Thread.findByIdAndUpdate(req.body.threadId, {
       $inc: { comment_count: 1 },
     });
-    const {threadId, content, images, comments } = req.body;
+    const { threadId, content, images, comments } = req.body;
     const newThread = new Thread({
       user_id: req.user._id,
       content,
@@ -169,7 +170,7 @@ module.exports.createComment = BigPromise(async (req, res) => {
       });
       await newComment.save();
     }
-    
+
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
     });
@@ -208,7 +209,6 @@ module.exports.readCommentReplies = BigPromise(async (req, res) => {
         $match: {
           parent_thread: new mongoose.Types.ObjectId(commentId),
           _id: { $ne: new mongoose.Types.ObjectId(commentId) },
-        
         },
       },
       {
@@ -221,7 +221,12 @@ module.exports.readCommentReplies = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+                $expr: {
+                  $and: [
+                    { $eq: ["$$parentThreadId", "$parent_thread"] },
+                    { $ne: ["$$parentThreadId", "$_id"] },
+                  ],
+                },
               },
             },
             {
@@ -395,11 +400,23 @@ module.exports.toggleThreadSave = BigPromise(async (req, res) => {
     const { threadId } = req.body;
     const savedBy = req.user._id;
     const thread = await Thread.findById(threadId);
-    const isSaved = thread.saved_by.includes(savedBy);
-    if (isSaved) {
-      thread.saved_by.pull(savedBy);
+    if (!thread) {
+      return ErrorHandler(res, 404, "Thread not found");
+    }
+    const existingSave = await ThreadSaves.findOne({
+      thread_id: threadId,
+      saved_by: savedBy,
+    });
+    if (existingSave) {
+      await ThreadSaves.findByIdAndRemove(existingSave._id);
+      thread.saved_count--;
     } else {
-      thread.saved_by.push(savedBy);
+      const newSavedThread = new ThreadSaves({
+        thread_id: threadId,
+        saved_by: savedBy,
+      });
+      await newSavedThread.save();
+      thread.saved_count++;
     }
     await thread.save();
     ControllerResponse(res, 200, "Thread save toggled successfully");
@@ -410,32 +427,17 @@ module.exports.toggleThreadSave = BigPromise(async (req, res) => {
 
 module.exports.getSavedThreads = BigPromise(async (req, res) => {
   try {
-    const savedThreads = await Thread.find({ saved_by: req.user._id });
-    const populatedSavedThreads = await Promise.all(
-      savedThreads.map(async (thread) => {
-        const user = await Users.findById(
-          thread.user_id,
-          "username occupation profile_pic"
-        );
-        return {
-          threadId: thread._id,
-          content: thread.content,
-          images: thread.images,
-          is_private: thread.is_private,
-          isBase: thread.isBase,
-          like_count: thread.like_count,
-          comment_count: thread.comment_count,
-          user: {
-            userId: user._id,
-            username: user.username,
-            occupation: user.occupation,
-            profile_pic: user.profile_pic,
-          },
-          createdAt: thread.createdAt,
-          updatedAt: thread.updatedAt,
-        };
+    const savedThreads = await ThreadSaves.find({ saved_by: req.user._id });
+    const threadIds = savedThreads.map((savedThread) => savedThread.thread_id);
+    const populatedSavedThreads = await Thread.find({
+      _id: { $in: threadIds },
+    })
+      .populate({
+        path: "user_id",
+        select: "username occupation profile_pic",
+        model: Users,
       })
-    );
+      .exec();
     ControllerResponse(res, 200, populatedSavedThreads);
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error", err);
