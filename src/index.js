@@ -1,7 +1,11 @@
 const app = require("./app");
 const connectWithDb = require("./config/mongoDB");
-require("dotenv").config();
 
+const initializeFirebase = require("./config/fireBaseAdmin");
+// Import the dotenv package
+require('dotenv').config();
+
+initializeFirebase();
 
 connectWithDb();
 

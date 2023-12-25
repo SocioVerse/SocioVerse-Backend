@@ -18,4 +18,4 @@ const savedThreadsSchema = new Schema(
   }
 );
 
-module.exports = mongoose.model("threadSaves", savedThreadsSchema);
+module.exports = mongoose.model("ThreadSaves", savedThreadsSchema);
