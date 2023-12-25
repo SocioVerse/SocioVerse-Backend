@@ -16,6 +16,11 @@ const {
 } = require("../services/threadsServices");
 const auth = require("../middlewares/auth");
 
+
+
+
+
+
 router.route("/create-new-thread").post(auth, createThread); //Done
 router.route("/update-thread").put(auth, updateThread); //Done
 router.route("/read-thread").get(auth, readThread); //Done
