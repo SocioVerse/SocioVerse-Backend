@@ -512,11 +512,22 @@ module.exports.toogleRepostThread = BigPromise(async (req, res) => {
       reposted_by: req.user._id,
     });
     await newRepost.save();
-    const fcmToken = await DeviceFCMToken.findOne({ user_id: thread.user_id }, { fcm_token: 1 });
-    if (fcmToken && user._id.toString() !== req.user._id.toString())
-      await FirebaseAdminService.sendNotification({ fcmToken: fcmToken.fcm_token, notification: "Repost", body: user.username + " just reposted your thread" });
+    const fcmTokens = await DeviceFCMToken.find({
+      user_id: thread.user_id,
+      user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+    }, { fcm_token: 1 });
+    console.log(fcmTokens);
+    if (fcmTokens.length > 0)
+      await FirebaseAdminService.sendNotifications({
+        fcmTokens: fcmTokens.map(
+          (fcmToken) => fcmToken.fcm_token
+        ), notification: "Repost", body: user.username + " just reposted your thread"
+      });
+
+
     ControllerResponse(res, 200, "Thread Reposted");
   } catch (err) {
+    console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -666,9 +677,17 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
 
       await followRequest.save();
       const user = await Users.findById(requestingUserId);
-      const fcmToken = await DeviceFCMToken.findOne({ user_id: targetUserId }, { fcm_token: 1 });
-      if (fcmToken && user._id.toString() !== req.user._id.toString())
-        await FirebaseAdminService.sendNotification({ fcmToken: fcmToken.fcm_token, notification: "New Request", body: user.username + " just send you a follow request" });
+      const fcmTokens = await DeviceFCMToken.find({
+        user_id: targetUserId,
+        user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+      }, { fcm_token: 1 });
+      console.log(fcmTokens);
+      if (fcmTokens.length > 0)
+        await FirebaseAdminService.sendNotifications({
+          fcmTokens: fcmTokens.map(
+            (fcmToken) => fcmToken.fcm_token
+          ), notification: "New Request", body: user.username + " just send you a follow request"
+        });
       ControllerResponse(res, 200, "Follow Request Sent Succesfully");
     }
   } catch (err) {
@@ -742,9 +761,17 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     );
     await Request.save();
     const user = await Users.findById(requestingUserId);
-    const fcmToken = await DeviceFCMToken.findOne({ user_id: targetUserId }, { fcm_token: 1 });
-    if (fcmToken && user._id.toString() !== req.user._id.toString())
-      await FirebaseAdminService.sendNotification({ fcmToken: fcmToken.fcm_token, notification: "Request Accepted", body: user.username + " just accepted your follow request" });
+    const fcmTokens = await DeviceFCMToken.find({
+      user_id: targetUserId,
+      user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+    }, { fcm_token: 1 });
+    console.log(fcmTokens);
+    if (fcmTokens.length > 0)
+      await FirebaseAdminService.sendNotifications({
+        fcmTokens: fcmTokens.map(
+          (fcmToken) => fcmToken.fcm_token
+        ), notification: "Request Accepted", body: user.username + " just accepted your follow request"
+      });
 
     ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {
@@ -1007,27 +1034,3 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
   }
 });
 
-
-module.exports.testNotf = BigPromise(async (req, res) => {
-  try {
-
-    const fcm_token = req.body.fcm_token;
-
-    const response = await FirebaseAdminService.sendNotification(
-      {
-        fcmToken: fcm_token,
-        notification: 'New Follower',
-        body: `started following you`,
-
-      }
-
-
-    );
-    console.log('Successfully sent message:', response);
-    ControllerResponse(res, 200, "Notification Sent Successfully");
-
-  } catch (err) {
-    console.log(err);
-    ErrorHandler(res, 500, "Internal Server Error");
-  }
-});

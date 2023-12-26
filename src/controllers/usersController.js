@@ -21,14 +21,11 @@ const {
     addBio,
     searchAPI,
     fetchRepostedThread,
-    testNotf,
 } = require("../services/usersServices");
 const router = express.Router();
 const auth = require("../middlewares/auth");
 
 
-//DEV Apis
-router.route("/send-test-notfication").post(testNotf);
 
 // PUBLIC APIs
 router.route("/signup").post(signup);

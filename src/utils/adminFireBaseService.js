@@ -13,24 +13,35 @@ function extractEncodedStringFromURL(url) {
 }
 class FirebaseAdminService {
 
-    static async sendNotification({ fcmToken, notification, body }) {
-        const message = {
-            notification: {
-                title: notification,
-                body: body,
+    static async sendNotifications({ fcmTokens, notification, body }) {
+        const messages = [];
 
-            },
-            token: fcmToken,
-        };
+        fcmTokens.forEach((token) => {
+            const message = {
+                notification: {
+                    title: notification,
+                    body: body,
+                },
+                token: token,
+            };
+
+            messages.push(message);
+        });
 
         try {
-            await admin.messaging().send(message);
-            console.log('Successfully sent message');
+            const sendPromises = messages.map(async (message) => {
+                await admin.messaging().send(message);
+                console.log('Successfully sent message to token:', message.token);
+            });
+
+            await Promise.all(sendPromises);
+            console.log('All messages sent successfully');
         } catch (error) {
-            console.error('Error sending message:', error);
+            console.error('Error sending messages:', error);
             throw error;
         }
     }
+
 
     static async deleteFilesFromStorageByUrls(urls) {
         const bucket = admin.storage().bucket();
