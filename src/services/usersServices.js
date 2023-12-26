@@ -1011,11 +1011,11 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
 module.exports.testNotf = BigPromise(async (req, res) => {
   try {
 
-
+    const fcm_token = req.body.fcm_token;
 
     const response = await FirebaseAdminService.sendNotification(
       {
-        fcmToken: 'cA2HTaDoSUSZjs5bzQmX6K:APA91bGlO1iCRwnUi7fJ9NpaTko9Lgvs3pLtIPn3kYLymrt5bGmP9oNuTAfuyBYpbNGU-p4Re8NBHPaNk_JZRA70D0z9ndqCd0sJHcCzOz-yriT3b0lTLlRT0kzzhCI_7nmPYF0Me2QM',
+        fcmToken: fcm_token,
         notification: 'New Follower',
         body: `started following you`,
 
