@@ -189,9 +189,21 @@ module.exports.createComment = BigPromise(async (req, res) => {
     }
     const thread = await Thread.findById(threadId);
     const user = await Users.findById(req.user._id);
-    const fcmToken = await DeviceFCMToken.findOne({ user_id: thread.user_id }, { fcm_token: 1 });
-    if (fcmToken && user._id.toString() !== req.user._id.toString())
-      await FirebaseAdminService.sendNotification({ fcmToken: fcmToken.fcm_token, notification: "New Comment", body: user.username + " just commented your thread" });
+    const fcmTokens = await DeviceFCMToken.find({
+      user_id: thread.user_id,
+      user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+    }, { fcm_token: 1 });
+    console.log(fcmTokens);
+    if (fcmTokens.length > 0)
+      await FirebaseAdminService.sendNotifications({
+        fcmTokens: fcmTokens.map(
+          (fcmToken) => fcmToken.fcm_token
+        ), notification: "New Comment", body: user.username + " just commented your thread"
+      });
+
+
+
+
     ControllerResponse(res, 200, {
       message: "Comment created successfully",
     });
@@ -349,9 +361,17 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
       });
       await newLike.save();
       thread.like_count++;
-      const fcmToken = await DeviceFCMToken.findOne({ user_id: thread.user_id }, { fcm_token: 1 });
-      if (fcmToken && user._id.toString() !== req.user._id.toString())
-        await FirebaseAdminService.sendNotification({ fcmToken: fcmToken.fcm_token, notification: "New Like", body: user.username + " just liked your thread" });
+      const fcmTokens = await DeviceFCMToken.find({
+        user_id: thread.user_id,
+        user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+      }, { fcm_token: 1 });
+      console.log(fcmTokens);
+      if (fcmTokens.length > 0)
+        await FirebaseAdminService.sendNotifications({
+          fcmTokens: fcmTokens.map(
+            (fcmToken) => fcmToken.fcm_token
+          ), notification: "New Like", body: user.username + " just liked your thread"
+        });
     }
 
     await thread.save();
