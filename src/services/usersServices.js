@@ -513,9 +513,11 @@ module.exports.toogleRepostThread = BigPromise(async (req, res) => {
     });
     await newRepost.save();
     const fcmTokens = await DeviceFCMToken.find({
-      user_id: thread.user_id,
-      user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
-    }, { fcm_token: 1 });
+      $and: [
+        { user_id: thread.user_id },
+        { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+      ]
+    }, { fcm_token: 1, user_id: 1 });
     console.log(fcmTokens);
     if (fcmTokens.length > 0)
       await FirebaseAdminService.sendNotifications({
@@ -678,8 +680,10 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
       await followRequest.save();
       const user = await Users.findById(requestingUserId);
       const fcmTokens = await DeviceFCMToken.find({
-        user_id: targetUserId,
-        user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+        $and: [
+          { user_id: targetUserId },
+          { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+        ]
       }, { fcm_token: 1 });
       console.log(fcmTokens);
       if (fcmTokens.length > 0)
@@ -762,8 +766,10 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     await Request.save();
     const user = await Users.findById(requestingUserId);
     const fcmTokens = await DeviceFCMToken.find({
-      user_id: targetUserId,
-      user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) }
+      $and: [
+        { user_id: targetUserId },
+        { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+      ]
     }, { fcm_token: 1 });
     console.log(fcmTokens);
     if (fcmTokens.length > 0)
