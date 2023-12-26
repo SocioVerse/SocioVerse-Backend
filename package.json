@@ -19,7 +19,6 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-fileupload": "^1.4.1",
-    "firebase": "^10.7.1",
     "firebase-admin": "^12.0.0",
     "imgbb-uploader": "^1.5.1",
     "jsonwebtoken": "^9.0.2",
