@@ -33,6 +33,8 @@ module.exports.signup = BigPromise(async (req, res) => {
     dob,
     profile_pic,
     face_image_dataset,
+    fcmToken
+
   } = req.body;
   console.log(req.body);
   if (checkEmail(email) == false) {
@@ -80,7 +82,10 @@ module.exports.signup = BigPromise(async (req, res) => {
 
     // store refresh token in database
     await RefreshToken.create({ token: refresh_token });
-
+    await DeviceFCMToken({
+      user_id: user._id,
+      fcm_token: fcmToken
+    }).save();
     delete user._doc.password;
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
