@@ -2,7 +2,7 @@ const jwt = require("jsonwebtoken");
 const { doubleEncryptData, doubleDecryptData } = require("./doubleEncryption");
 class JwtService {
   // set expiry to 30m by default
-  static sign(payload, expiry = "365d", secret = process.env.ACCESS_TOKEN_KEY) {
+  static sign(payload, expiry = "1d", secret = process.env.ACCESS_TOKEN_KEY) {
     const token = doubleEncryptData(jwt.sign(payload, secret, { expiresIn: expiry }));
     return token;
   }
