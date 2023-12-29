@@ -37,9 +37,9 @@ exports.refresh = BigPromise(async (req, res) => {
 
         // store refresh token in database
         await RefreshToken.create({ token: refresh_token });
-
         // remove old refresh token from database
         await RefreshToken.findOneAndDelete({ token: req.body.refresh_token })
+
 
         return ControllerResponse(res, 200, { access_token, refresh_token })
     }

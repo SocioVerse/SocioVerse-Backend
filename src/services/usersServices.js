@@ -15,7 +15,13 @@ const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
 const ThreadSaves = require("../models/threadSaves");
 const DeviceFCMToken = require("../models/deviceFcmTocken");
+const Story = require("../models/storyModel");
+const StorySeen = require("../models/storySeens");
+const StoryLike = require("../models/storyLikes");
 const e = require("express");
+const storyLikes = require("../models/storyLikes");
+
+
 function checkEmail(email) {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailPattern.test(email);
@@ -525,11 +531,12 @@ module.exports.toogleRepostThread = BigPromise(async (req, res) => {
     }, { fcm_token: 1, user_id: 1 });
     console.log(fcmTokens);
     if (fcmTokens.length > 0)
-      await FirebaseAdminService.sendNotifications({
-        fcmTokens: fcmTokens.map(
-          (fcmToken) => fcmToken.fcm_token
-        ), notification: "Repost", body: user.username + " just reposted your thread"
-      });
+      await FirebaseAdminService.
+        otifications({
+          fcmTokens: fcmTokens.map(
+            (fcmToken) => fcmToken.fcm_token
+          ), notification: "Repost", body: user.username + " just reposted your thread"
+        });
 
 
     ControllerResponse(res, 200, "Thread Reposted");
@@ -1045,3 +1052,134 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
   }
 });
 
+module.exports.fetchAllStories = BigPromise(async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const followingUsers = await Follow.find({
+      followed_by: userId,
+      is_confirmed: true,
+    });
+
+    const followingUserIds = followingUsers.map((user) => user.followed_to);
+    followingUserIds.push(new mongoose.Types.ObjectId(userId));
+    const stories = await Story.aggregate([
+      {
+        $match: {
+          user_id: { $in: followingUserIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$user_id",
+          user_id: { $first: "$user_id" },
+          createdAt: { $first: "$createdAt" },
+        },
+      },
+      {
+        $sort: {
+          createdAt: -1,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "user_id",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      {
+        $unwind: "$user"
+      },
+      {
+        $project: {
+          "user._id": 1,
+          "user.profile_pic": 1,
+          "user.username": 1,
+          "user.name": 1,
+          "user.occupation": 1,
+          "user.email": 1,
+          _id: 0, // Exclude the default _id field
+        },
+      },
+    ]);
+
+    for (let i = 0; i < stories.length; i++) {
+      stories[i].user.isOwner = stories[i].user._id.toString() == userId.toString();
+      const countOfStory = await Story.countDocuments({ user_id: stories[i].user._id });
+      const countedStories = await Story.find({ user_id: stories[i].user._id });
+      const countOfSeenStory = await StorySeen.countDocuments({ seen_by: userId, story_id: { $in: countedStories.map((story) => story._id) } });
+      console.log(countOfStory, countOfSeenStory);
+      stories[i].is_all_seen = countOfStory == countOfSeenStory;
+    }
+    console.log(stories)
+
+    const owner = await Users.findById(userId, {
+      _id: 1,
+      profile_pic: 1,
+      username: 1,
+      name: 1,
+      occupation: 1,
+      email: 1,
+    });
+
+    const ownerStory = stories.find((story) => story.user.isOwner);
+    if (ownerStory) {
+      stories.splice(stories.indexOf(ownerStory), 1);
+      stories.sort((a, b) => b.is_all_seen - a.is_all_seen);
+      stories.unshift(ownerStory);
+    }
+    else {
+      stories.sort((a, b) => b.is_all_seen - a.is_all_seen);
+      stories.unshift({
+        user: { ...owner._doc, isOwner: true },
+        is_all_seen: null,
+      });
+    }
+
+    ControllerResponse(res, 200, stories);
+  } catch (err) {
+    ErrorHandler(res, 500, "Internal Server Error"); s
+  }
+});
+module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const story_id = req.query.story_id;
+    const story = await Story.findById(story_id);
+    const seenBy = await StorySeen.find({ story_id: story });
+    const users = [];
+    let owner;
+    for (const user of seenBy) {
+
+      const userDetail = await Users.findById(user.seen_by, {
+        _id: 1,
+        profile_pic: 1,
+        username: 1,
+        name: 1,
+        occupation: 1,
+        email: 1,
+
+      });
+      //liked by user
+      userDetail._doc.isLiked = await StoryLike.findOne({ liked_by: user.seen_by, story_id: story_id }) != null;
+      if (userDetail._doc._id.toString() == userId.toString()) {
+        owner = userDetail._doc;
+        owner.isOwner = true;
+        continue;
+      }
+      userDetail._doc.isOwner = false;
+      users.push(userDetail._doc);
+    }
+    users.sort((a, b) => b.isLiked - a.isLiked);
+    users.unshift(owner);
+    const likeCount = await StoryLike.countDocuments({ story_id: story_id });
+
+
+    ControllerResponse(res, 200, { likeCount, users });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
