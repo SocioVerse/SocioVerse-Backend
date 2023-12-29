@@ -1,9 +1,8 @@
 const mongoose = require("mongoose");
-
 const RefreshToken = new mongoose.Schema({
     token: {
         type: String,
-        unique: true
+        required: true,
     },
     createdAt: {
         type: Date,
@@ -13,5 +12,4 @@ const RefreshToken = new mongoose.Schema({
         }
     }
 })
-
 module.exports = mongoose.model('RefreshToken', RefreshToken)
