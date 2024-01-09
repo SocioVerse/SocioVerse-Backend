@@ -14,7 +14,7 @@ const {
   toggleThreadSave,
   getSavedThreads,
 } = require("../services/threadsServices");
-const auth = require("../middlewares/auth");
+const { auth } = require("../middlewares/auth");
 
 
 

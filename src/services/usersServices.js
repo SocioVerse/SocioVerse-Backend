@@ -18,8 +18,9 @@ const DeviceFCMToken = require("../models/deviceFcmTocken");
 const Story = require("../models/storyModel");
 const StorySeen = require("../models/storySeens");
 const StoryLike = require("../models/storyLikes");
+const Room = require("../models/chatRoomModel");
+const Message = require("../models/messageModel");
 const e = require("express");
-const storyLikes = require("../models/storyLikes");
 
 
 function checkEmail(email) {
@@ -368,6 +369,7 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
           name: 1,
           profile_pic: 1,
           occupation: 1,
+          email: 1,
           state: {
             $cond: {
               if: { $eq: [{ $size: "$followData" }, 0] },
@@ -532,7 +534,7 @@ module.exports.toogleRepostThread = BigPromise(async (req, res) => {
     console.log(fcmTokens);
     if (fcmTokens.length > 0)
       await FirebaseAdminService.
-        otifications({
+        sendNotifications({
           fcmTokens: fcmTokens.map(
             (fcmToken) => fcmToken.fcm_token
           ), notification: "Repost", body: user.username + " just reposted your thread"
@@ -1143,6 +1145,7 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error"); s
   }
 });
+
 module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
   try {
     const userId = req.user._id;
@@ -1178,6 +1181,143 @@ module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
 
 
     ControllerResponse(res, 200, { likeCount, users });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const user = await Users.findById(userId);
+    if (!user) {
+      return ErrorHandler(res, 404, "User not found");
+    }
+    const room = await Room.findOne({
+      participants: { $all: [req.user._id, userId] },
+    });
+    console.log(room);
+    if (!room) {
+      //Create new room
+      const newRoom = new Room({
+        participants: [req.user._id, userId],
+        isGroup: false,
+      });
+      await newRoom.save();
+      return ControllerResponse(res, 200, { room: newRoom, messages: [] });
+    }
+
+    const messages = await Message.aggregate([
+      {
+        $match: {
+          room_id: new mongoose.Types.ObjectId(room._id),
+        },
+      },
+      {
+        $sort: {
+          createdAt: 1,
+        },
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "sentBy",
+          foreignField: "_id",
+          as: "sender",
+        },
+      },
+      {
+        $unwind: "$sender"
+      },
+      {
+        $project: {
+          "sender._id": 1,
+          "sender.profile_pic": 1,
+          "sender.username": 1,
+          "sender.name": 1,
+          "sender.occupation": 1,
+          "sender.email": 1,
+          _id: 1,
+          message: 1,
+          image: 1,
+          thread: 1,
+          seenBy: 1,
+          createdAt: 1,
+        },
+      },
+    ]);
+    const updatedMessages = messages.map((message) => {
+      message.isSeenByAll = message.seenBy.length === room.participants.length;
+      message.sender.isOwner = message.sender._id.toString() === req.user._id.toString();
+      return message;
+    });
+
+    ControllerResponse(res, 200, { room, messages: updatedMessages });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.allRecentChats = BigPromise(async (req, res) => {
+  try {
+
+
+    // req.user._id is present in participants array
+    const rooms = await Room.find({
+      participants: req.user._id,
+    }).sort({ updatedAt: -1 });
+
+    for (const room of rooms) {
+      const user = room.participants.find(participant => participant.toString() !== req.user._id.toString());
+      room._doc.isRequestMessage = await Follow.findOne({
+        followed_by: user,
+        followed_to: req.user._id,
+        is_confirmed: true,
+      }) == null && await Message.find({
+        room_id: room.id,
+        sentBy: req.user._id
+      }).countDocuments() == 0
+        ? true : false;
+      console.log(user);
+      room._doc.user = room.isGroup == false ? await Users.findById(user, {
+        _id: 1,
+        profile_pic: 1,
+        username: 1,
+        name: 1,
+        occupation: 1,
+        email: 1,
+      }) : null;
+      delete room._doc.participants;
+      const lastMessage = await Message.findOne({
+        _id: room.lastMessage,
+      }, {
+        _id: 1,
+        message: 1,
+        image: 1,
+        thread: 1,
+        createdAt: 1,
+        updatedAt: 1,
+      });
+
+      room.lastMessage = lastMessage;
+
+      const unreadMessages = await Message.countDocuments({
+        room_id: room._id,
+        seenBy: { $ne: req.user._id },
+      });
+
+      room._doc.unreadMessages = unreadMessages;
+    }
+
+
+
+    console.log(rooms);
+
+
+
+    ControllerResponse(res, 200, rooms);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");

@@ -7,7 +7,7 @@ const {
     toogleStoryLike,
     storySeen,
 } = require("../services/storyServices");
-const auth = require("../middlewares/auth");
+const { auth } = require("../middlewares/auth");
 
 
 router.route("/create-story").post(auth, createNewStory); //Done

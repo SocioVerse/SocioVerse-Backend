@@ -22,10 +22,12 @@ const {
     searchAPI,
     fetchRepostedThread,
     fetchAllStories,
-    fetchAllStoriesSeens
+    fetchAllStoriesSeens,
+    getRoomInfoByUser,
+    allRecentChats
 } = require("../services/usersServices");
 const router = express.Router();
-const auth = require("../middlewares/auth");
+const { auth } = require("../middlewares/auth");
 
 
 
@@ -63,5 +65,7 @@ router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
 router.route("/fetch-reposted-thread").get(auth, fetchRepostedThread);
 router.route("/add-bio").post(auth, addBio);
 
-
+//chat apis
+router.route("/get-room-info-by-user").get(auth, getRoomInfoByUser);
+router.route("/all-recent-chats").get(auth, allRecentChats);
 module.exports = router;
