@@ -4,7 +4,7 @@ const storySchema = new Schema(
     {
         user_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "userSchema",
+            ref: "users",
             required: true,
         },
         image:

@@ -4,12 +4,12 @@ const storyLikeSchema = new Schema(
     {
         liked_by: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "userSchema",
+            ref: "users",
             required: true,
         },
         story_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "storySchema",
+            ref: "stories",
             required: true,
         },
     },

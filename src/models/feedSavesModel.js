@@ -1,22 +1,21 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const Schema = mongoose.Schema;
-const threadLikesSchema = new Schema(
+const savedFeedsSchema = new Schema(
     {
-        thread_id: {
+        feed_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "threads",
+            ref: "feeds",
             required: true,
         },
-        liked_by: {
+        saved_by: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "users",
             required: true,
-        }
-
+        },
     },
     {
         timestamps: true,
     }
 );
 
-module.exports = mongoose.model("threadLikes", threadLikesSchema);
+module.exports = mongoose.model("FeedSaves", savedFeedsSchema);

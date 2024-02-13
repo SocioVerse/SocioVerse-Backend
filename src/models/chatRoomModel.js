@@ -5,7 +5,7 @@ const roomSchema = new Schema(
     {
         roomId: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "roomSchema",
+            ref: "Room",
             required: true,
             default: function () {
                 return this._id;
@@ -27,7 +27,7 @@ const roomSchema = new Schema(
         participants: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: "userSchema", // Reference to the user schema
+                ref: "users", // Reference to the user schema
             },
         ],
         lastMessage: {

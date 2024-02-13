@@ -8,7 +8,7 @@ const messageSchema = new Schema(
         },
         room_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "roomSchema",
+            ref: "Rooms",
             required: true,
         },
         image: {
@@ -16,18 +16,18 @@ const messageSchema = new Schema(
         },
         thread: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "threadsSchema",
+            ref: "threads",
         },
         seenBy: [
             {
                 type: mongoose.Schema.Types.ObjectId,
-                ref: "userSchema",
+                ref: "users",
                 default: [],
             },
         ],
         sentBy: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "userSchema",
+            ref: "users",
             required: true,
         },
     },

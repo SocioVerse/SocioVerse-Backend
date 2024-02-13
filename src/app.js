@@ -20,10 +20,12 @@ const refresh = require("./controllers/refreshController");
 const users = require("./controllers/usersController");
 const threads = require("./controllers/threadsController");
 const stories = require("./controllers/storyController");
+const feeds = require("./controllers/feedsController");
 
 app.use("/api/users", users);
 app.use("/api/token", refresh);
 app.use("/api/threads", threads);
 app.use("/api/stories", stories);
+app.use("/api/feeds", feeds);
 
 module.exports = app;
