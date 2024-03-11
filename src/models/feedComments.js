@@ -33,10 +33,6 @@ const feedCommentsSchema = new Schema(
             type: Number,
             default: 0,
         },
-        is_private: {
-            type: Boolean,
-            default: false,
-        },
     },
     {
         timestamps: true,

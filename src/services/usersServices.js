@@ -25,7 +25,6 @@ const Message = require("../models/messageModel");
 const Feed = require("../models/feedModel");
 const Hashtag = require("../models/hashtagModel");
 const Location = require("../models/locationModel");
-const axios = require('axios');
 const e = require("express");
 
 function checkEmail(email) {
@@ -1091,6 +1090,54 @@ module.exports.addBio = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+
+module.exports.fetchUserFeeds = BigPromise(async (req, res) => {
+  try {
+    isFollower = await Follow.findOne({
+      followed_by: req.user._id,
+      followed_to: req.query.userId ?? req.user._id,
+      is_confirmed: true
+    });
+    if (req.query.userId == req.user._id)
+      isFollower = true;
+    const feeds = await Feed.find({
+      user_id: req.query.userId ?? req.user._id,
+      $or: [
+        { is_private: isFollower != null ? false : true },
+        { is_private: false }
+      ]
+    }, {
+      user_id: 1,
+      images: 1,
+      is_private: 1,
+      allow_comments: 1,
+      allow_save: 1,
+      created_at: 1,
+    });
+
+    for (let i = 0; i < feeds.length; i++) {
+
+      const user = await Users.findById(feeds[i].user_id,
+        {
+          _id: 1,
+          username: 1,
+          profile_pic: 1,
+          occupation: 1,
+          email: 1,
+        });
+      console.log(req.user._id === feeds[i].user_id._id ? true : false);
+      feeds[i]._doc.user_id = {
+        ...user._doc,
+        isOwner: false
+      };
+    }
+    ControllerResponse(res, 200, feeds);
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+}
+);
 module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
   try {
     const userId = req.query.userId ?? req.user._id;
@@ -1447,17 +1494,23 @@ module.exports.searchLocation = BigPromise(async (req, res) => {
   try {
     const { query } = req.query;
 
-    const response = await axios
-      .get(
-        `https://photon.komoot.io/api/?q=${query}&limit=10`
-      );
-    const data = response.data.features.map((feature) => ({
-      name: feature.properties.name,
-      type: feature.properties.type,
-      country: feature.properties.country,
-      state: feature.properties.state,
-      geometry: feature.geometry,
+    const locations = await Location.find({
+      $or: [
+        { name: { $regex: new RegExp("^" + query, "i") } },
+        { country: { $regex: new RegExp("^" + query, "i") } },
+        { state: { $regex: new RegExp("^" + query, "i") } },
+      ],
+    }).limit(10);
+    const data = locations.map((feature) => ({
+      _id: feature._id,
+      name: feature.name,
+      type: feature.type,
+      country: feature.country,
+      state: feature.state,
+      post_count: feature.post_count,
+      geometry: { "coordinates": [parseFloat(feature.latitude), parseFloat(feature.longitude)] },
     }));
+    console.log(data);
     ControllerResponse(res, 200, data);
   } catch (err) {
     console.error(err);
@@ -1478,7 +1531,45 @@ module.exports.searchHashtags = BigPromise(async (req, res) => {
       hashtag: 1,
       post_count: 1,
     }).limit(10);
+    console.log(hashtags);
     ControllerResponse(res, 200, hashtags);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+module.exports.searchMetadata = BigPromise(async (req, res) => {
+  try {
+    const { query } = req.query;
+    console.log(query);
+    const feeds = await Feed.find({
+      caption: new RegExp("^" + query, "i"),
+      is_private: false,
+    }, {
+      user_id: 1,
+      images: 1,
+      is_private: 1,
+      allow_comments: 1,
+      allow_save: 1,
+      created_at: 1,
+    });
+    for (let i = 0; i < feeds.length; i++) {
+      const user = await Users.findById(feeds[i].user_id,
+        {
+          _id: 1,
+          username: 1,
+          profile_pic: 1,
+          occupation: 1,
+          email: 1,
+        });
+      console.log(req.user._id === feeds[i].user_id._id ? true : false);
+      feeds[i]._doc.user_id = {
+        ...user._doc,
+        isOwner: false
+      };
+    }
+
+    ControllerResponse(res, 200, feeds);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
