@@ -693,7 +693,7 @@ module.exports.fetchFollowingFeeds = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                parent_feed: "$$parentFeedId"
+                $expr: { $and: [{ $eq: ["$$parentFeedId", "$parent_feed"] }, { $ne: ["$$parentFeedId", "$_id"] }] },
               }
 
             },
@@ -708,7 +708,6 @@ module.exports.fetchFollowingFeeds = BigPromise(async (req, res) => {
         },
       },
     ]);
-
     // Fetch comment users' details and map by ID
     const commentUserIds = new Set();
     feedsWithUserDetails.forEach((feed) => {
