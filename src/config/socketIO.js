@@ -90,7 +90,21 @@ const initializeSocketIO = (server) => {
             io.to(roomId).emit('message-seen', updatedMessages);
         });
         socket.on('typing', ({ roomId, isTyping }) => {
-            io.to(roomId).emit('typing', { roomId, user: socket.handshake.user, isTyping });
+            socket.broadcast.to(roomId).emit('typing', { roomId, user: socket.handshake.user, isTyping });
+        });
+        socket.on('unsend-message', async ({ roomId, messageId }) => {
+            const message = await Message.findById(messageId);
+
+
+
+
+
+            if (message.sentBy.toString() == socket.handshake.user._id.toString()) {
+                await Message.findByIdAndDelete(messageId);
+                const lastMessage = await Message.findOne({ room_id: roomId }).sort({ createdAt: -1 }).limit(1);
+                await Room.findByIdAndUpdate(roomId, { lastMessage: lastMessage?._id });
+                io.to(roomId).emit('unsend-message', { roomId, messageId });
+            }
         });
         socket.on('message', async ({ roomId, message, image, thread }) => {
             console.log(roomId, message, image, thread);

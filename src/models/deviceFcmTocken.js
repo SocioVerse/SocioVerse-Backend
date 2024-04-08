@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const DeviceFCMToken = new mongoose.Schema({
     user_id: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'userSchema',
+        ref: 'users',
         required: true
     },
     fcm_token: {

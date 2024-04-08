@@ -1,10 +1,10 @@
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
-const threadLikesSchema = new Schema(
+const feedCommentLikeModel = new Schema(
     {
-        thread_id: {
+        comment_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "threads",
+            ref: "feedComments",
             required: true,
         },
         liked_by: {
@@ -19,4 +19,4 @@ const threadLikesSchema = new Schema(
     }
 );
 
-module.exports = mongoose.model("threadLikes", threadLikesSchema);
+module.exports = mongoose.model("feedCommentLikes", feedCommentLikeModel);

@@ -13,14 +13,20 @@ const Follow = require("../models/follows");
 const Thread = require("../models/threadsModel");
 const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
+const FeedLikes = require("../models/feedLikesModel");
 const ThreadSaves = require("../models/threadSaves");
+const FeedSaves = require("../models/feedSavesModel");
 const DeviceFCMToken = require("../models/deviceFcmTocken");
 const Story = require("../models/storyModel");
 const StorySeen = require("../models/storySeens");
 const StoryLike = require("../models/storyLikes");
 const Room = require("../models/chatRoomModel");
 const Message = require("../models/messageModel");
+const Feed = require("../models/feedModel");
+const Hashtag = require("../models/hashtagModel");
+const Location = require("../models/locationModel");
 const e = require("express");
+const { default: axios } = require("axios");
 
 function checkEmail(email) {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -92,6 +98,19 @@ module.exports.signup = BigPromise(async (req, res) => {
       fcm_token: fcmToken,
     }).save();
     delete user._doc.password;
+
+    //Add image to faceDataSet
+    if (user.face_image_dataset.length > 0) {
+      response = await axios
+        .post(
+          `https://j007acky-facerecog.hf.space/user/`
+          , {
+            image_url: face_image_dataset[0],
+            user_name: user._id,
+          }
+        );
+    }
+    console.log(response);
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
       ...user._doc,
@@ -393,6 +412,25 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
   }
 });
 
+module.exports.searchUserByFace = BigPromise(async (req, res) => {
+  try {
+    const { faceImage } = req.query;
+    console.log(faceImage);
+    const response = await axios
+      .post(
+        `https://j007acky-facerecog.hf.space/`
+        , {
+          image_url: faceImage,
+        }
+      );
+
+    ControllerResponse(res, 200, response.data);
+  } catch (error) {
+    console.error(error);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
 module.exports.fetchFollowers = BigPromise(async (req, res) => {
   try {
     const userId = req.query.userId ?? req.user._id;
@@ -687,6 +725,118 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+module.exports.fetchFollowingFeeds = BigPromise(async (req, res) => {
+
+
+  try {
+    const { _id } = req.user;
+    // Fetch followingUserIds directly without aggregation
+    const followingUsers = await Follow.find({
+      followed_by: _id,
+      is_confirmed: true,
+    }).distinct('followed_to');
+
+    // Fetch threads with comments
+    const feedsWithUserDetails = await Feed.aggregate([
+      {
+        $match: {
+          $or: [
+            { user_id: { $in: followingUsers } },
+            {
+              is_private: false,
+              user_id: { $ne: new mongoose.Types.ObjectId(_id) }
+
+            },
+          ],
+        },
+      },
+      {
+        $sort: { createdAt: -1 },
+      },
+      {
+        $lookup: {
+          from: "feedcomments",
+          let: { parentFeedId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $and: [{ $eq: ["$$parentFeedId", "$parent_feed"] }, { $ne: ["$$parentFeedId", "$_id"] }] },
+              }
+
+            },
+            {
+              $sort: { createdAt: -1 },
+            },
+            {
+              $limit: 3,
+            },
+          ],
+          as: "latestComments",
+        },
+      },
+    ]);
+    // Fetch comment users' details and map by ID
+    const commentUserIds = new Set();
+    feedsWithUserDetails.forEach((feed) => {
+      feed.latestComments.forEach((comment) => {
+        commentUserIds.add(comment.user_id.toString());
+      });
+    });
+
+    const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+
+    const commentUserMap = new Map(commentUsers.map((user) => [user._id.toString(), user]));
+
+    // Fetch user details for threads
+    const feedUserIds = feedsWithUserDetails.map((feed) => feed.user_id);
+
+    const feedIds = feedsWithUserDetails.map((feed) => feed._id);
+    let alltags = [];
+
+    feedsWithUserDetails.map(async (feed) => {
+      if (feed.tags.length > 0)
+        alltags = alltags.concat(feed.tags);
+    });
+
+    const [users, feedLikes, saves, tags, location] = await Promise.all([
+      Users.find({ _id: { $in: feedUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
+      FeedLikes.find({ liked_by: req.user._id, feed_id: { $in: feedIds } }),
+      FeedSaves.find({ saved_by: req.user._id, feed_id: { $in: feedIds } }),
+      Hashtag.find({ _id: { $in: alltags } }),
+      Location.find({ _id: { $in: feedsWithUserDetails.map(feed => feed.location) } }),
+    ]);
+
+    const feedLikesMap = new Map(feedLikes.map((like) => [like.feed_id.toString(), true]));
+    const savedFeedsMap = new Map(saves.map((savedFeed) => [savedFeed.feed_id.toString(), true]));
+    const userMap = new Map(users.map((user) => [user._id.toString(), user]));
+    const tagsMap = new Map(tags.map((tag) => [tag._id.toString(), tag.hashtag]));
+    const locationMap = new Map(location.map((loc) => [loc._id.toString(), loc.name]));
+
+    console.log(saves);
+    // Process feeds and add necessary details
+    const processedFeeds = feedsWithUserDetails.map((feed) => {
+      feed.isLiked = feedLikesMap.get(feed._id.toString()) || false;
+      feed.isSaved = savedFeedsMap.get(feed._id.toString()) || false;
+      const user = userMap.get(feed.user_id.toString());
+      feed.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
+      feed.tags = feed.tags.map(tag => tagsMap.get(tag.toString()));
+      feed.location = feed.location == null ? null : locationMap.get(feed.location.toString());
+
+      feed.commentUsers = feed.latestComments.map((comment) => ({
+        _id: comment.user_id,
+        profile_pic: commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
+      }));
+      delete feed.user_id;
+      delete feed.latestComments;
+      return feed;
+    });
+
+    ControllerResponse(res, 200, processedFeeds);
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
 
 module.exports.createFollowRequest = BigPromise(async (req, res) => {
   try {
@@ -809,22 +959,19 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     );
     await Request.save();
     const user = await Users.findById(requestingUserId);
-    const fcmTokens = await DeviceFCMToken.find(
-      {
-        $and: [
-          { user_id: targetUserId },
-          { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } },
-        ],
-      },
-      { fcm_token: 1 }
-    );
-    console.log(fcmTokens);
-    if (fcmTokens.length > 0)
-      await FirebaseAdminService.sendNotifications({
-        fcmTokens: fcmTokens.map((fcmToken) => fcmToken.fcm_token),
-        notification: "Request Accepted",
-        body: user.username + " just accepted your follow request",
-      });
+    // const fcmTokens = await DeviceFCMToken.find({
+    //   $and: [
+    //     { user_id: targetUserId },
+    //     { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+    //   ]
+    // }, { fcm_token: 1 });
+    // console.log(fcmTokens);
+    // if (fcmTokens.length > 0)
+    //   await FirebaseAdminService.sendNotifications({
+    //     fcmTokens: fcmTokens.map(
+    //       (fcmToken) => fcmToken.fcm_token
+    //     ), notification: "Request Accepted", body: user.username + " just accepted your follow request"
+    //   });
 
     ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {
@@ -1031,11 +1178,61 @@ module.exports.addBio = BigPromise(async (req, res) => {
     await user.save();
 
     ControllerResponse(res, 200, "Bio added successfully");
+
+
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+
+module.exports.fetchUserFeeds = BigPromise(async (req, res) => {
+  try {
+    isFollower = await Follow.findOne({
+      followed_by: req.user._id,
+      followed_to: req.query.userId ?? req.user._id,
+      is_confirmed: true
+    });
+    if (req.query.userId == req.user._id)
+      isFollower = true;
+    const feeds = await Feed.find({
+      user_id: req.query.userId ?? req.user._id,
+      $or: [
+        { is_private: isFollower != null ? false : true },
+        { is_private: false }
+      ]
+    }, {
+      user_id: 1,
+      images: 1,
+      is_private: 1,
+      allow_comments: 1,
+      allow_save: 1,
+      created_at: 1,
+    });
+
+    for (let i = 0; i < feeds.length; i++) {
+
+      const user = await Users.findById(feeds[i].user_id,
+        {
+          _id: 1,
+          username: 1,
+          profile_pic: 1,
+          occupation: 1,
+          email: 1,
+        });
+      console.log(req.user._id === feeds[i].user_id._id ? true : false);
+      feeds[i]._doc.user_id = {
+        ...user._doc,
+        isOwner: false
+      };
+    }
+    ControllerResponse(res, 200, feeds);
+  } catch (err) {
+    console.log(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+}
+);
 module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
   try {
     const userId = req.query.userId ?? req.user._id;
@@ -1242,7 +1439,6 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, stories);
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error");
-    s;
   }
 });
 
@@ -1425,6 +1621,93 @@ module.exports.allRecentChats = BigPromise(async (req, res) => {
     console.log(rooms);
 
     ControllerResponse(res, 200, rooms);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+
+module.exports.searchLocation = BigPromise(async (req, res) => {
+  try {
+    const { query } = req.query;
+
+    const locations = await Location.find({
+      $or: [
+        { name: { $regex: new RegExp("^" + query, "i") } },
+        { country: { $regex: new RegExp("^" + query, "i") } },
+        { state: { $regex: new RegExp("^" + query, "i") } },
+      ],
+    }).limit(10);
+    const data = locations.map((feature) => ({
+      _id: feature._id,
+      name: feature.name,
+      type: feature.type,
+      country: feature.country,
+      state: feature.state,
+      post_count: feature.post_count,
+      geometry: { "coordinates": [parseFloat(feature.latitude), parseFloat(feature.longitude)] },
+    }));
+    console.log(data);
+    ControllerResponse(res, 200, data);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.searchHashtags = BigPromise(async (req, res) => {
+  try {
+    const { query } = req.query;
+    const hashtags = await Hashtag.find({
+      hashtag: {
+        $regex: new RegExp("^" + query, "i")
+      },
+
+    }, {
+      _id: 1,
+      hashtag: 1,
+      post_count: 1,
+    }).limit(10);
+    console.log(hashtags);
+    ControllerResponse(res, 200, hashtags);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+module.exports.searchMetadata = BigPromise(async (req, res) => {
+  try {
+    const { query } = req.query;
+    console.log(query);
+    const feeds = await Feed.find({
+      caption: new RegExp("^" + query, "i"),
+      is_private: false,
+    }, {
+      user_id: 1,
+      images: 1,
+      is_private: 1,
+      allow_comments: 1,
+      allow_save: 1,
+      created_at: 1,
+    });
+    for (let i = 0; i < feeds.length; i++) {
+      const user = await Users.findById(feeds[i].user_id,
+        {
+          _id: 1,
+          username: 1,
+          profile_pic: 1,
+          occupation: 1,
+          email: 1,
+        });
+      console.log(req.user._id === feeds[i].user_id._id ? true : false);
+      feeds[i]._doc.user_id = {
+        ...user._doc,
+        isOwner: false
+      };
+    }
+
+    ControllerResponse(res, 200, feeds);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");

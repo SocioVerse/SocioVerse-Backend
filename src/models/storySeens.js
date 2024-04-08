@@ -4,12 +4,12 @@ const storySeenSchema = new Schema(
     {
         seen_by: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "userSchema",
+            ref: "users",
             required: true,
         },
         story_id: {
             type: mongoose.Schema.Types.ObjectId,
-            ref: "storySchema",
+            ref: "stories",
             required: true,
         },
     },
