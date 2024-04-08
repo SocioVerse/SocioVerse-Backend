@@ -26,6 +26,7 @@ const Feed = require("../models/feedModel");
 const Hashtag = require("../models/hashtagModel");
 const Location = require("../models/locationModel");
 const e = require("express");
+const { default: axios } = require("axios");
 
 function checkEmail(email) {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -98,6 +99,19 @@ module.exports.signup = BigPromise(async (req, res) => {
       fcm_token: fcmToken
     }).save();
     delete user._doc.password;
+
+    //Add image to faceDataSet
+    if (user.face_image_dataset.length > 0) {
+      response = await axios
+        .post(
+          `https://j007acky-facerecog.hf.space/user/`
+          , {
+            image_url: face_image_dataset[0],
+            user_name: user._id,
+          }
+        );
+    }
+    console.log(response);
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
       ...user._doc,
@@ -399,6 +413,25 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
     const users = await Users.aggregate(pipeline);
     console.log(users);
     ControllerResponse(res, 200, users);
+  } catch (error) {
+    console.error(error);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.searchUserByFace = BigPromise(async (req, res) => {
+  try {
+    const { faceImage } = req.query;
+    console.log(faceImage);
+    const response = await axios
+      .post(
+        `https://j007acky-facerecog.hf.space/`
+        , {
+          image_url: faceImage,
+        }
+      );
+
+    ControllerResponse(res, 200, response.data);
   } catch (error) {
     console.error(error);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -895,19 +928,19 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     );
     await Request.save();
     const user = await Users.findById(requestingUserId);
-    const fcmTokens = await DeviceFCMToken.find({
-      $and: [
-        { user_id: targetUserId },
-        { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-      ]
-    }, { fcm_token: 1 });
-    console.log(fcmTokens);
-    if (fcmTokens.length > 0)
-      await FirebaseAdminService.sendNotifications({
-        fcmTokens: fcmTokens.map(
-          (fcmToken) => fcmToken.fcm_token
-        ), notification: "Request Accepted", body: user.username + " just accepted your follow request"
-      });
+    // const fcmTokens = await DeviceFCMToken.find({
+    //   $and: [
+    //     { user_id: targetUserId },
+    //     { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+    //   ]
+    // }, { fcm_token: 1 });
+    // console.log(fcmTokens);
+    // if (fcmTokens.length > 0)
+    //   await FirebaseAdminService.sendNotifications({
+    //     fcmTokens: fcmTokens.map(
+    //       (fcmToken) => fcmToken.fcm_token
+    //     ), notification: "Request Accepted", body: user.username + " just accepted your follow request"
+    //   });
 
     ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {
@@ -1306,7 +1339,7 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
 
     ControllerResponse(res, 200, stories);
   } catch (err) {
-    ErrorHandler(res, 500, "Internal Server Error"); s
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
