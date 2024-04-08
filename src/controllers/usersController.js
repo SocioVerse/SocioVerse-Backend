@@ -21,9 +21,13 @@ const {
   addBio,
   searchAPI,
   fetchRepostedThread,
+  fetchAllStories,
+  fetchAllStoriesSeens,
+  getRoomInfoByUser,
+  allRecentChats,
 } = require("../services/usersServices");
 const router = express.Router();
-const auth = require("../middlewares/auth");
+const { auth } = require("../middlewares/auth");
 const { generateOtp, verifyOtp } = require("../services/emailService");
 
 // PUBLIC APIs
@@ -51,7 +55,8 @@ router
   .get(auth, fetchLatestFollowRequests);
 router.route("/toogle-repost-thread").post(auth, toogleRepostThread);
 router.route("/fetch-all-follow-request").get(auth, fetchAllFollowRequest);
-
+router.route("/fetch-all-stories").get(auth, fetchAllStories);
+router.route("/fetch-all-stories-seens").get(auth, fetchAllStoriesSeens);
 //search api
 router.route("/search-user").get(auth, searchAPI);
 
@@ -60,6 +65,9 @@ router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
 router.route("/fetch-reposted-thread").get(auth, fetchRepostedThread);
 router.route("/add-bio").post(auth, addBio);
 
+//chat apis
+router.route("/get-room-info-by-user").get(auth, getRoomInfoByUser);
+router.route("/all-recent-chats").get(auth, allRecentChats);
 router.route("/generate-otp").post(generateOtp);
 router.route("/verify-otp").post(verifyOtp);
 
