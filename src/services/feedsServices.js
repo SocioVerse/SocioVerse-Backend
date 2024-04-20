@@ -158,6 +158,7 @@ module.exports.deleteFeed = BigPromise(async (req, res) => {
             ]);
         }
         const feed = await Feed.findById(feedId);
+        console.log(feed, "feed");
         // decrease location count
         if (feed.location) {
             const location = await Location.findById(feed.location);
@@ -623,6 +624,44 @@ module.exports.fetchMentionedUsers = BigPromise(async (req, res) => {
                 users[i]._doc.isOwner = false;
             }
         }
+        ControllerResponse(res, 200, users);
+    } catch (err) {
+        console.error(err);
+        ErrorHandler(res, 500, "Internal Server Error");
+    }
+});
+module.exports.fetchFeedLikes = BigPromise(async (req, res) => {
+    try {
+        const { feedId } = req.query;
+        const feedLikes = await FeedLikes.find({
+            feed_id: feedId
+        }
+        );
+        if (!feedLikes) {
+            return ErrorHandler(res, 404, "Feed not found");
+        }
+        const likes = feedLikes.map((like) => like.liked_by);
+        console.log("Likes", feedLikes)
+        const users = await Users.find({
+            _id: {
+                $in: likes,
+            },
+        }, {
+            _id: 1,
+            username: 1,
+            profile_pic: 1,
+            occupation: 1,
+            email: 1,
+        });
+        console.log("users", users)
+        for (let i = 0; i < users.length; i++) {
+            if (users[i]._id.toString() === req.user._id) {
+                users[i]._doc.isOwner = true;
+            } else {
+                users[i]._doc.isOwner = false;
+            }
+        }
+
         ControllerResponse(res, 200, users);
     } catch (err) {
         console.error(err);

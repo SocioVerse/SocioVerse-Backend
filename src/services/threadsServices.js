@@ -579,3 +579,41 @@ module.exports.getSavedThreads = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error", err);
   }
 });
+module.exports.fetchThreadLikes = BigPromise(async (req, res) => {
+  try {
+    const { threadId } = req.query;
+    const threadLikes = await ThreadLikes.find({
+      thread_id: threadId
+    }
+    );
+    if (!threadLikes) {
+      return ErrorHandler(res, 404, "Feed not found");
+    }
+    const likes = threadLikes.map((like) => like.liked_by);
+    console.log("Likes", threadLikes)
+    const users = await Users.find({
+      _id: {
+        $in: likes,
+      },
+    }, {
+      _id: 1,
+      username: 1,
+      profile_pic: 1,
+      occupation: 1,
+      email: 1,
+    });
+    console.log("users", users)
+    for (let i = 0; i < users.length; i++) {
+      if (users[i]._id.toString() === req.user._id) {
+        users[i]._doc.isOwner = true;
+      } else {
+        users[i]._doc.isOwner = false;
+      }
+    }
+
+    ControllerResponse(res, 200, users);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});

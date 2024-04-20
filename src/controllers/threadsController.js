@@ -11,6 +11,7 @@ const {
   fetchRepostedUsers,
   toggleThreadLike,
   getLikedThreads,
+  fetchThreadLikes,
   toggleThreadSave,
   getSavedThreads,
 } = require("../services/threadsServices");
@@ -36,4 +37,5 @@ router.route("/liked-threads").get(auth, getLikedThreads);
 
 router.route("/toggle-thread-save").post(auth, toggleThreadSave);
 router.route("/saved-threads").get(auth, getSavedThreads);
+router.route("/fetch-thread-likes").get(auth, fetchThreadLikes);
 module.exports = router;
