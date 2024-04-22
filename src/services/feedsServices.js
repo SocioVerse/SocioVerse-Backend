@@ -771,3 +771,108 @@ module.exports.getFeedById = BigPromise(async (req, res) => {
         ErrorHandler(res, 500, "Internal Server Error");
     }
 });
+
+module.exports.fetchTrendingFeeds = BigPromise(async (req, res) => {
+
+
+    try {
+        const { _id } = req.user;
+
+
+        // Fetch threads with comments
+        const feedsWithUserDetails = await Feed.aggregate([
+            {
+                $match:
+                {
+                    is_private: false,
+
+                },
+
+            },
+            {
+                $sort: { createdAt: -1 },
+            },
+            {
+                $lookup: {
+                    from: "feedcomments",
+                    let: { parentFeedId: "$_id" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: { $and: [{ $eq: ["$$parentFeedId", "$parent_feed"] }, { $ne: ["$$parentFeedId", "$_id"] }] },
+                            }
+
+                        },
+                        {
+                            $sort: { createdAt: -1 },
+                        },
+                        {
+                            $limit: 3,
+                        },
+                    ],
+                    as: "latestComments",
+                },
+            },
+        ]);
+        // Fetch comment users' details and map by ID
+        const commentUserIds = new Set();
+        feedsWithUserDetails.forEach((feed) => {
+            feed.latestComments.forEach((comment) => {
+                commentUserIds.add(comment.user_id.toString());
+            });
+        });
+
+        const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+
+        const commentUserMap = new Map(commentUsers.map((user) => [user._id.toString(), user]));
+
+        // Fetch user details for threads
+        const feedUserIds = feedsWithUserDetails.map((feed) => feed.user_id);
+
+        const feedIds = feedsWithUserDetails.map((feed) => feed._id);
+        let alltags = [];
+
+        feedsWithUserDetails.map(async (feed) => {
+            if (feed.tags.length > 0)
+                alltags = alltags.concat(feed.tags);
+        });
+
+        const [users, feedLikes, saves, tags, location] = await Promise.all([
+            Users.find({ _id: { $in: feedUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
+            FeedLikes.find({ liked_by: req.user._id, feed_id: { $in: feedIds } }),
+            FeedSaves.find({ saved_by: req.user._id, feed_id: { $in: feedIds } }),
+            Hashtag.find({ _id: { $in: alltags } }),
+            Location.find({ _id: { $in: feedsWithUserDetails.map(feed => feed.location) } }),
+        ]);
+
+        const feedLikesMap = new Map(feedLikes.map((like) => [like.feed_id.toString(), true]));
+        const savedFeedsMap = new Map(saves.map((savedFeed) => [savedFeed.feed_id.toString(), true]));
+        const userMap = new Map(users.map((user) => [user._id.toString(), user]));
+        const tagsMap = new Map(tags.map((tag) => [tag._id.toString(), tag.hashtag]));
+        const locationMap = new Map(location.map((loc) => [loc._id.toString(), loc.name]));
+
+        console.log(saves);
+        // Process feeds and add necessary details
+        const trendingFeeds = feedsWithUserDetails.map((feed) => {
+            feed.isLiked = feedLikesMap.get(feed._id.toString()) || false;
+            feed.isSaved = savedFeedsMap.get(feed._id.toString()) || false;
+            const user = userMap.get(feed.user_id.toString());
+            feed.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
+            feed.tags = feed.tags.map(tag => tagsMap.get(tag.toString()));
+            feed.location = feed.location == null ? null : locationMap.get(feed.location.toString());
+
+            feed.commentUsers = feed.latestComments.map((comment) => ({
+                _id: comment.user_id,
+                profile_pic: commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
+            }));
+            delete feed.user_id;
+            delete feed.latestComments;
+            return feed;
+        });
+
+        ControllerResponse(res, 200, trendingFeeds);
+    } catch (err) {
+        console.log(err);
+        ErrorHandler(res, 500, "Internal Server Error");
+    }
+});

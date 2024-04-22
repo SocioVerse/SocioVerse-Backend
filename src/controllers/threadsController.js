@@ -13,6 +13,7 @@ const {
   getLikedThreads,
   fetchThreadLikes,
   toggleThreadSave,
+  fetchTrendingThreads,
   getSavedThreads,
 } = require("../services/threadsServices");
 const { auth } = require("../middlewares/auth");
@@ -38,4 +39,7 @@ router.route("/liked-threads").get(auth, getLikedThreads);
 router.route("/toggle-thread-save").post(auth, toggleThreadSave);
 router.route("/saved-threads").get(auth, getSavedThreads);
 router.route("/fetch-thread-likes").get(auth, fetchThreadLikes);
+
+
+router.route("/fetch-trending-threads").get(auth, fetchTrendingThreads);
 module.exports = router;

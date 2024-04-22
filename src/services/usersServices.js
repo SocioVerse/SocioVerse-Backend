@@ -601,15 +601,7 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     const threadsWithUserDetails = await Thread.aggregate([
       {
         $match: {
-          $or: [
-            { user_id: { $in: followingUsers } },
-            {
-              is_private: false,
-              user_id: { $ne: new mongoose.Types.ObjectId(_id) }
-
-            },
-
-          ],
+          user_id: { $in: followingUsers },
           isBase: true,
         },
       },
@@ -706,16 +698,9 @@ module.exports.fetchFollowingFeeds = BigPromise(async (req, res) => {
     // Fetch threads with comments
     const feedsWithUserDetails = await Feed.aggregate([
       {
-        $match: {
-          $or: [
-            { user_id: { $in: followingUsers } },
-            {
-              is_private: false,
-              user_id: { $ne: new mongoose.Types.ObjectId(_id) }
+        $match:
+          { user_id: { $in: followingUsers } },
 
-            },
-          ],
-        },
       },
       {
         $sort: { createdAt: -1 },
