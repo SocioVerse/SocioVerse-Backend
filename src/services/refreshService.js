@@ -10,6 +10,7 @@ exports.refresh = BigPromise(async (req, res) => {
         }
 
         // check if token is in db.
+        console.log(req.body.refresh_token, "req.body.refresh_token")
         const refreshToken = await RefreshToken.findOne({ token: req.body.refresh_token })
         console.log(refreshToken, "refreshToken")
         if (!refreshToken) {
@@ -38,9 +39,9 @@ exports.refresh = BigPromise(async (req, res) => {
 
         console.log(access_token, refresh_token, "access_token, refresh_token")
 
-        // store refresh token in database
+        // store refresh token in database.
         await RefreshToken.create({ token: refresh_token });
-        // remove old refresh token from database
+        // remove old refresh token from databasef
         await RefreshToken.findOneAndDelete({ token: req.body.refresh_token })
 
 

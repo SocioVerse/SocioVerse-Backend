@@ -7,9 +7,6 @@ const RefreshToken = new mongoose.Schema({
     createdAt: {
         type: Date,
         default: Date.now,
-        index: {
-            expires: 3600 * 24 * 30
-        }
     }
 })
 module.exports = mongoose.model('RefreshToken', RefreshToken)

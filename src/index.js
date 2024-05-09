@@ -15,11 +15,13 @@ const server = require('http').createServer(app);
 initializeSocketIO(server);
 // Initialize the firebase admin
 initializeFirebase();
-// Schedule the cron job to run every 24 hours
-cron.schedule('* * * * * *', () => {
-    deleteOldStories();
-});
 connectWithDb();
+
+// Schedule the cron job to run every 24 hours
+// cron.schedule('* * * * * *', () => {
+//     deleteOldStories();
+// });
+
 
 server.listen(process.env.PORT, () => {
     console.log(`Server is running on port: ${process.env.PORT}`);

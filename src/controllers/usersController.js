@@ -29,6 +29,7 @@ const {
     fetchAllStories,
     fetchAllStoriesSeens,
     getRoomInfoByUser,
+    createRoom,
     searchMetadata,
     allRecentChats,
     hideStory,
@@ -81,6 +82,7 @@ router.route("/add-bio").post(auth, addBio);
 
 //chat apis
 router.route("/get-room-info-by-user").get(auth, getRoomInfoByUser);
+router.route("/create-room").post(auth, createRoom);
 router.route("/all-recent-chats").get(auth, allRecentChats);
 
 //story apis

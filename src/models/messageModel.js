@@ -6,6 +6,10 @@ const messageSchema = new Schema(
         message: {
             type: String,
         },
+        soft_delete: {
+            type: Boolean,
+            default: false,
+        },
         room_id: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "Rooms",
