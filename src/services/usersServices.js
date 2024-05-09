@@ -93,7 +93,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     );
 
     // store refresh token in database
-    await RefreshToken.create({ token: refresh_token });
+    await RefreshToken({ token: refresh_token }).save();
     await DeviceFCMToken({
       user_id: user._id,
       fcm_token: fcmToken
@@ -157,7 +157,7 @@ module.exports.login = BigPromise(async (req, res) => {
       "30d",
       process.env.REFRESH_TOKEN_KEY
     );
-    await RefreshToken.create({ token: refresh_token });
+    await RefreshToken({ token: refresh_token }).save();
     await DeviceFCMToken({
       user_id: user._id,
       fcm_token: fcmToken
@@ -1411,19 +1411,15 @@ module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
     });
     console.log(room);
     if (!room) {
-      //Create new room
-      const newRoom = new Room({
-        participants: [req.user._id, userId],
-        isGroup: false,
-      });
-      await newRoom.save();
-      return ControllerResponse(res, 200, { room: newRoom, messages: [] });
+
+      return ControllerResponse(res, 200, { room: null, messages: [] });
     }
 
     const messages = await Message.aggregate([
       {
         $match: {
           room_id: new mongoose.Types.ObjectId(room._id),
+          soft_delete: false,
         },
       },
       {
@@ -1471,6 +1467,20 @@ module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+module.exports.createRoom = BigPromise(async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const newRoom = new Room({
+      participants: [req.user._id, userId],
+      isGroup: false,
+    });
+    await newRoom.save();
+    ControllerResponse(res, 200, newRoom);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
 
 module.exports.allRecentChats = BigPromise(async (req, res) => {
   try {
@@ -1482,6 +1492,7 @@ module.exports.allRecentChats = BigPromise(async (req, res) => {
     }).sort({ updatedAt: -1 });
 
     for (const room of rooms) {
+      console.log(room)
       const user = room.participants.find(participant => participant.toString() !== req.user._id.toString());
       room._doc.isRequestMessage = await Follow.findOne({
         followed_by: user,
@@ -1510,6 +1521,7 @@ module.exports.allRecentChats = BigPromise(async (req, res) => {
         image: 1,
         thread: 1,
         createdAt: 1,
+        sentBy: 1,
         updatedAt: 1,
       });
 
@@ -1517,6 +1529,7 @@ module.exports.allRecentChats = BigPromise(async (req, res) => {
 
       const unreadMessages = await Message.countDocuments({
         room_id: room._id,
+        soft_delete: false,
         seenBy: { $ne: req.user._id },
       });
 
