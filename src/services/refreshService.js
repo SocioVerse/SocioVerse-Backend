@@ -11,7 +11,7 @@ exports.refresh = BigPromise(async (req, res) => {
 
         // check if token is in db.
         const refreshToken = await RefreshToken.findOne({ token: req.body.refresh_token })
-
+        console.log(refreshToken, "refreshToken")
         if (!refreshToken) {
             return ErrorHandler(res, 400, "Invalid refresh token")
         }
@@ -19,6 +19,7 @@ exports.refresh = BigPromise(async (req, res) => {
         // get _id & phone_number
         const { _id, phone_number, email } = jwt.verify(refreshToken.token, process.env.REFRESH_TOKEN_KEY)
 
+        console.log(_id, phone_number, email, "refreshTokenDecode")
         // generate access token
         const access_token = jwt.sign({
             _id,
@@ -34,6 +35,8 @@ exports.refresh = BigPromise(async (req, res) => {
             "30d",
             process.env.REFRESH_TOKEN_KEY
         );
+
+        console.log(access_token, refresh_token, "access_token, refresh_token")
 
         // store refresh token in database
         await RefreshToken.create({ token: refresh_token });

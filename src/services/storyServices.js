@@ -72,6 +72,21 @@ module.exports.deleteStory = BigPromise(async (req, res) => {
         ErrorHandler(res, 500, "Internal Server Error");
     }
 });
+module.exports.deleteOldStories = async () => {
+    try {
+
+        const findStory = await Story.find({ createdAt: { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } });
+        for (const story of findStory) {
+            await StoryLike.deleteMany({ story_id: story._id });
+            await StorySeen.deleteMany({ story_id: story._id });
+            await Story.findByIdAndDelete(story._id);
+        }
+    } catch (err) {
+        console.log(err);
+    }
+};
+
+
 
 module.exports.toogleStoryLike = BigPromise(async (req, res) => {
     try {

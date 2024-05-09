@@ -31,6 +31,8 @@ const {
     getRoomInfoByUser,
     searchMetadata,
     allRecentChats,
+    hideStory,
+    unhideStory,
 } = require("../services/usersServices");
 const router = express.Router();
 const { auth } = require("../middlewares/auth");
@@ -62,8 +64,7 @@ router.route("/fetch-following-feeds").get(auth, fetchFollowingFeeds);
 router.route("/fetch-latest-follow-request").get(auth, fetchLatestFollowRequests);
 router.route("/toogle-repost-thread").post(auth, toogleRepostThread);
 router.route("/fetch-all-follow-request").get(auth, fetchAllFollowRequest);
-router.route("/fetch-all-stories").get(auth, fetchAllStories);
-router.route("/fetch-all-stories-seens").get(auth, fetchAllStoriesSeens);
+
 
 //search api
 router.route("/search-user").get(auth, searchAPI);
@@ -81,6 +82,12 @@ router.route("/add-bio").post(auth, addBio);
 //chat apis
 router.route("/get-room-info-by-user").get(auth, getRoomInfoByUser);
 router.route("/all-recent-chats").get(auth, allRecentChats);
+
+//story apis
+router.route("/fetch-all-stories").get(auth, fetchAllStories);
+router.route("/fetch-all-stories-seens").get(auth, fetchAllStoriesSeens);
+router.route("/hide-story").post(auth, hideStory);
+router.route("/unhide-story").post(auth, unhideStory);
 
 
 module.exports = router;

@@ -80,6 +80,14 @@ const userSchema = new Schema(
       type: String,
       trim: true,
     },
+    story_hide_from: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "users",
+        default: [],
+      },
+
+    ],
   },
   {
     timestamps: true,

@@ -345,6 +345,7 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
     if (!query) {
       return ErrorHandler(res, 400, "Search field is required.");
     }
+    const hiddenFeatures = await Users.findById(req.user._id, { story_hide_from: 1 });
 
     const pipeline = [
       {
@@ -600,15 +601,7 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
     const threadsWithUserDetails = await Thread.aggregate([
       {
         $match: {
-          $or: [
-            { user_id: { $in: followingUsers } },
-            {
-              is_private: false,
-              user_id: { $ne: new mongoose.Types.ObjectId(_id) }
-
-            },
-
-          ],
+          user_id: { $in: followingUsers },
           isBase: true,
         },
       },
@@ -705,16 +698,9 @@ module.exports.fetchFollowingFeeds = BigPromise(async (req, res) => {
     // Fetch threads with comments
     const feedsWithUserDetails = await Feed.aggregate([
       {
-        $match: {
-          $or: [
-            { user_id: { $in: followingUsers } },
-            {
-              is_private: false,
-              user_id: { $ne: new mongoose.Types.ObjectId(_id) }
+        $match:
+          { user_id: { $in: followingUsers } },
 
-            },
-          ],
-        },
       },
       {
         $sort: { createdAt: -1 },
@@ -984,7 +970,7 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
     const userId = req.query.userId ?? req.user._id;
     console.log(userId);
 
-
+    const hiddenFeatures = await Users.findById(req.user._id, { story_hide_from: 1 });
     const user = await Users.findById(userId, {
       name: 1,
       username: 1,
@@ -1003,7 +989,7 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
     if (!user) {
       return ErrorHandler(res, 404, "User not found");
     }
-
+    user._doc.story_hidden = hiddenFeatures.story_hide_from.includes(userId);
     const threadsQuery = {
       user_id: new mongoose.Types.ObjectId(userId),
       isBase: true,
@@ -1090,8 +1076,7 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
       delete thread.user_id;
       delete thread.latestComments;
     }
-
-
+    console.log({ user, threadsWithUserDetails });
 
     ControllerResponse(res, 200, { user, threadsWithUserDetails });
 
@@ -1254,18 +1239,30 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
 module.exports.fetchAllStories = BigPromise(async (req, res) => {
   try {
     const userId = req.user._id;
-
-    const followingUsers = await Follow.find({
+    const owner = await Users.findById(userId, {
+      _id: 1,
+      profile_pic: 1,
+      username: 1,
+      name: 1,
+      occupation: 1,
+      email: 1,
+      story_hide_from: 1,
+    });
+    let followingUsers = await Follow.find({
       followed_by: userId,
       is_confirmed: true,
     });
-
-    const followingUserIds = followingUsers.map((user) => user.followed_to);
+    followingUsers = await Users.find({
+      _id: { $in: followingUsers.map((user) => user.followed_to) },
+      story_hide_from: { $ne: userId }
+    });
+    const followingUserIds = followingUsers.map((user) => user._id);
     followingUserIds.push(new mongoose.Types.ObjectId(userId));
     const stories = await Story.aggregate([
       {
         $match: {
           user_id: { $in: followingUserIds },
+
         },
       },
       {
@@ -1306,24 +1303,16 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
 
     for (let i = 0; i < stories.length; i++) {
       stories[i].user.isOwner = stories[i].user._id.toString() == userId.toString();
+      stories[i].user.isStoryHidden = owner.story_hide_from.includes(stories[i].user._id);
       const countOfStory = await Story.countDocuments({ user_id: stories[i].user._id });
       const countedStories = await Story.find({ user_id: stories[i].user._id });
       const countOfSeenStory = await StorySeen.countDocuments({ seen_by: userId, story_id: { $in: countedStories.map((story) => story._id) } });
       console.log(countOfStory, countOfSeenStory);
       stories[i].is_all_seen = countOfStory == countOfSeenStory;
     }
-    console.log(stories)
-
-    const owner = await Users.findById(userId, {
-      _id: 1,
-      profile_pic: 1,
-      username: 1,
-      name: 1,
-      occupation: 1,
-      email: 1,
-    });
 
     const ownerStory = stories.find((story) => story.user.isOwner);
+
     if (ownerStory) {
       stories.splice(stories.indexOf(ownerStory), 1);
       stories.sort((a, b) => b.is_all_seen - a.is_all_seen);
@@ -1336,13 +1325,39 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
         is_all_seen: null,
       });
     }
-
+    console.log(stories)
     ControllerResponse(res, 200, stories);
   } catch (err) {
+    console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
+module.exports.hideStory = BigPromise(async (req, res) => {
+  try {
+    const { hideFrom } = req.body;
+    const userId = req.user._id;
+    await Users.findByIdAndUpdate(userId,
+      { $addToSet: { story_hide_from: hideFrom } });
+    ControllerResponse(res, 200, "Story hidden successfully");
+
+  }
+  catch (err) {
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+module.exports.unhideStory = BigPromise(async (req, res) => {
+  try {
+    const { unhideFrom } = req.body;
+    const userId = req.user._id;
+    await Users.findByIdAndUpdate(userId,
+      { $pull: { story_hide_from: unhideFrom } });
+    ControllerResponse(res, 200, "Story unhidden successfully");
+  }
+  catch (err) {
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
 module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
   try {
     const userId = req.user._id;
