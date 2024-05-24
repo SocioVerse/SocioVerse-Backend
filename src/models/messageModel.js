@@ -22,6 +22,18 @@ const messageSchema = new Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "threads",
         },
+        story: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "stories",
+        },
+        profile: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "users",
+        },
+        feed: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "feeds",
+        },
         seenBy: [
             {
                 type: mongoose.Schema.Types.ObjectId,

@@ -16,6 +16,32 @@ const Story = require("../models/storyModel");
 const StorySeen = require("../models/storySeens");
 const StoryLike = require("../models/storyLikes");
 
+
+
+module.exports.getUserByStoryId = BigPromise(async (req, res) => {
+    try {
+        const { story_id } = req.query;
+        const story = await Story.findById(story_id);
+        if (!story) {
+            return ErrorHandler(res, 400, "Story not found");
+        }
+        const user = await Users.findById(story.user_id);
+        const isFollower = await Follow.find({
+            followed_by: req.user._id,
+            followed_to: user._id,
+            is_confirmed: true
+        })
+        if (!isFollower) {
+            return ErrorHandler(res, 400, "Story is private")
+        }
+        user._doc.isOwner = req.user._id == user._id;
+        console.log(user, "user");
+        ControllerResponse(res, 200, user);
+    } catch (err) {
+        console.error(err);
+        ErrorHandler(res, 500, "Internal Server Error");
+    }
+});
 module.exports.createNewStory = BigPromise(async (req, res) => {
     try {
         const { images } = req.body;
@@ -29,13 +55,27 @@ module.exports.createNewStory = BigPromise(async (req, res) => {
         }
         ControllerResponse(res, 200, "Story Created Successfully");
     } catch (err) {
+        console.error(err);
         ErrorHandler(res, 500, "Internal Server Error");
     }
 });
 
 module.exports.readStory = BigPromise(async (req, res) => {
     try {
-        const { user_id } = req.query;
+        const { user_id, story_id } = req.query;
+        if (!user_id) {
+
+            const story = await Story.findById(story_id);
+
+            const storyLike = await StoryLike.findOne({ story_id: story._id, liked_by: req.user._id });
+            if (storyLike) {
+                story._doc.is_liked = true;
+            }
+            else {
+                story._doc.is_liked = false;
+            }
+            ControllerResponse(res, 200, { result: [...story] });
+        }
         const result = await Story.find({ user_id: user_id });
         //Add is liked
         for (const story of result) {

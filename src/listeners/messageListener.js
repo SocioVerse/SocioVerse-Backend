@@ -126,6 +126,10 @@ module.exports = (io, socket) => {
                     message: 1,
                     image: 1,
                     thread: 1,
+                    feed: 1,
+                    story: 1,
+                    profile: 1,
+
                     seenBy: 1,
                     createdAt: 1,
                 },
@@ -141,6 +145,7 @@ module.exports = (io, socket) => {
         io.to(roomId).emit('message-seen', updatedMessages);
     }
     const typing = ({ roomId, isTyping }) => {
+        console.log(roomId, isTyping);
         socket.broadcast.to(roomId).emit('typing', { roomId, user: socket.handshake.user, isTyping });
     }
     const unsendMessage = async ({ roomId, messageId }) => {
@@ -169,13 +174,17 @@ module.exports = (io, socket) => {
         getInbox(roomId);
         sendHomePage({ sentTo: await sendTo(roomId) });
     }
-    const createMessage = async ({ roomId, message, image, thread }) => {
+    const createMessage = async ({ roomId, message, image, thread, feed, story, profile }) => {
         console.log(roomId, message, image, thread);
         const newMessage = new Message({
             message,
             sentBy: socket.handshake.user._id,
+            seenBy: [socket.handshake.user._id],
             image,
             thread,
+            feed,
+            story,
+            profile,
             room_id: roomId,
         });
 

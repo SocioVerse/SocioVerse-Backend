@@ -716,6 +716,19 @@ module.exports.getFeedById = BigPromise(async (req, res) => {
     try {
         const { feedId } = req.query;
         const feed = await Feed.findById(feedId);
+
+        if (!feed) {
+            return ErrorHandler(res, 400, "Feed not found");
+        }
+        if (feed.is_private) {
+            const isFollower = await Follow.findOne({
+                followed_by: req.user._id,
+                followed_to: feed.user_id,
+                is_confirmed: true,
+            });
+            if (!isFollower)
+                return ErrorHandler(res, 400, "Feed is private");
+        }
         const [tags, location, mentions, isLiked, isSaved, user, commentUsers] = await Promise.all([
             Hashtag.find({ _id: { $in: feed.tags } }),
             Location.findById(feed.location),

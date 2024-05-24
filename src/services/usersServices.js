@@ -14,6 +14,8 @@ const Thread = require("../models/threadsModel");
 const RepostedThread = require("../models/repostedThread");
 const ThreadLikes = require("../models/threadLikes");
 const FeedLikes = require("../models/feedLikesModel");
+const FeedComments = require("../models/feedComments");
+const FeedCommentsLikes = require("../models/feedCommentLike");
 const ThreadSaves = require("../models/threadSaves");
 const FeedSaves = require("../models/feedSavesModel");
 const DeviceFCMToken = require("../models/deviceFcmTocken");
@@ -304,6 +306,86 @@ module.exports.fetchLatestFollowRequests = BigPromise(async (req, res) => {
     ControllerResponse(res, 200, { profilePics, names, followRequestCount });
   } catch (err) {
     console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.fetchActivity = BigPromise(async (req, res) => {
+  // -> Likes(thread, story, Feed) Collective
+  //   -> Comment(thread, story, Feed) Collective
+  //     -> comment likes
+  //       -> Add Socket when any of the above event occur
+  try {
+    if (req.query.type == "likes") {
+      const allThreads = await Thread.find({ user_id: req.user._id, like_count: { $gt: 0 } })
+      const allFeeds = await Feed.find({ user_id: req.user._id, like_count: { $gt: 0 } })
+      const allStories = await Story.find({ user_id: req.user._id, like_count: { $gt: 0 } })
+      console.log(allThreads, allFeeds, allStories);
+      const allThreadLikes = await Promise.all(allThreads.map(async (thread) => {
+        const recentLikes = await ThreadLikes.find({ thread_id: thread._id, liked_by: { $ne: req.user._id } }, { liked_by: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentLikes.map(like => like.liked_by) } }, { _id: 1, profile_pic: 1 });
+        return { type: 'Thread', thread, users, latestLike: recentLikes[0].createdAt };
+      }));
+
+      const allFeedLikes = await Promise.all(allFeeds.map(async (feed) => {
+        const recentLikes = await FeedLikes.find({ feed_id: feed._id, liked_by: { $ne: req.user._id } }, { liked_by: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentLikes.map(like => like.liked_by) } }, { _id: 1, profile_pic: 1 });
+        return { type: 'Feed', feed, users, latestLike: recentLikes[0].createdAt };
+      }))
+      const allStoryLikes = await Promise.all(allStories.map(async (story) => {
+        const recentLikes = await StoryLike.find({ story_id: story._id, liked_by: { $ne: req.user._id } }, { liked_by: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentLikes.map(like => like.liked_by) } }, { _id: 1, profile_pic: 1 });
+
+        return { type: 'Story', story, users, latestLike: Date(recentLikes[0].createdAt) };
+      }))
+      //sort by latest like
+      allLikes = allThreadLikes.concat(allFeedLikes, allStoryLikes).sort((a, b) => b.latestLike - a.latestLike);
+      ControllerResponse(res, 200, allLikes);
+      return
+    } else if (req.query.type == "comments") {
+      const allThreads = await Thread.find({ user_id: req.user._id, comment_count: { $gt: 0 } })
+      const allFeeds = await Feed.find({ user_id: req.user._id, comment_count: { $gt: 0 } })
+      console.log(allThreads, allFeeds);
+      const allThreadComments = await Promise.all(allThreads.map(async (thread) => {
+        const recentComments = await Thread.find({ parent_thread: thread._id, user_id: { $ne: req.user._id } }, { user_id: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentComments.map(comment => comment.user_id) } }, { _id: 1, profile_pic: 1 });
+        return { type: 'Thread', thread, users, latestComment: recentComments[0].createdAt };
+      }));
+
+      const allFeedComments = await Promise.all(allFeeds.map(async (feed) => {
+        const recentComments = await FeedComments.find({ parent_feed: feed._id, user_id: { $ne: req.user._id } }, { user_id: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentComments.map(comment => comment.user_id) } }, { _id: 1, profile_pic: 1 });
+        return { type: 'Feed', feed, users, latestComment: recentComments[0].createdAt };
+      })
+      )
+
+      allComments = allThreadComments.concat(allFeedComments).sort((a, b) => b.latestComment - a.latestComment);
+      ControllerResponse(res, 200, allComments);
+    } else if (req.query.type == "others") {
+      const feedCommentsLikes = await FeedComments.find({ user_id: req.user._id, like_count: { $gt: 0 } });
+      const feedComments = await FeedComments.find({ user_id: req.user._id, comment_count: { $gt: 0 } });
+      const allFeedCommentLikes = await Promise.all(feedCommentsLikes.map(async (comment) => {
+        const recentLikes = await FeedCommentsLikes.find({
+          comment_id: comment._id,
+          liked_by: { $ne: req.user._id },
+        }, { liked_by: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentLikes.map(like => like.liked_by) } }, { _id: 1, profile_pic: 1 });
+        return { type: 'FeedCommentLikes', comment, users, latestLike: recentLikes[0].createdAt };
+      }));
+      const allFeedCommentReplies = await Promise.all(feedComments.map(async (comment) => {
+        const recentComments = await FeedComments.find({
+          comment_id: comment._id,
+          parent_comment: { $ne: comment._id },
+          user_id: { $ne: req.user._id },
+        }, { liked_by: 1, createdAt: 1 }).sort({ createdAt: -1 }).limit(2);
+        const users = await Users.find({ _id: { $in: recentComments.map(comment => comment.user_id) } }, { _id: 1, profile_pic: 1 });
+        return { type: 'FeedCommentReplies', comment, users, latestLike: recentComments[0].createdAt };
+      }));
+      const allOthers = allFeedCommentReplies.concat(allFeedCommentLikes).sort((a, b) => b.latestComment - a.latestComment);
+      ControllerResponse(res, 200, allOthers);
+    }
+  } catch (error) {
+    console.error(error);
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
@@ -1129,8 +1211,8 @@ module.exports.fetchUserFeeds = BigPromise(async (req, res) => {
       is_private: 1,
       allow_comments: 1,
       allow_save: 1,
-      created_at: 1,
-    });
+      createdAt: 1,
+    }).sort({ createdAt: -1 });
 
     for (let i = 0; i < feeds.length; i++) {
 
@@ -1450,6 +1532,9 @@ module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
           message: 1,
           image: 1,
           thread: 1,
+          feed: 1,
+          profile: 1,
+          story: 1,
           seenBy: 1,
           createdAt: 1,
         },
@@ -1630,6 +1715,78 @@ module.exports.searchMetadata = BigPromise(async (req, res) => {
     }
 
     ControllerResponse(res, 200, feeds);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+module.exports.getRecentRoomsInfo = BigPromise(async (req, res) => {
+  try {
+
+    const rooms = await Room.find({
+      participants: { $in: [req.user._id] },
+    }).sort({ updatedAt: -1 });
+    const followingUsers = await Follow.find({
+      followed_by: req.user._id,
+      is_confirmed: true,
+    }, {
+      followed_to: 1,
+      _id: 0
+    });
+    const followers = await Follow.find({
+      followed_to: req.user._id,
+      is_confirmed: true,
+    }, {
+      followed_by: 1,
+      _id: 0
+    });
+    const followedToList = new Set(followingUsers.map(user => user.followed_to.toString()));
+    const followingUsersList = new Set(followers.map(user => user.followed_by.toString()));
+
+    console.log(followingUsersList, followedToList);
+    const allUsers = new Set([...followedToList, ...followingUsersList]);
+    for (const room of rooms) {
+      const user = room.participants.find(participant => participant.toString() !== req.user._id.toString());
+      allUsers.add(user);
+    }
+    const users = await Users.find({
+      _id: { $in: Array.from(allUsers) }
+    }, {
+      _id: 1,
+      name: 1,
+      username: 1,
+      profile_pic: 1,
+      occupation: 1,
+      email: 1,
+    });
+    console.log(users);
+    ControllerResponse(res, 200, users);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
+
+module.exports.getRoomId = BigPromise(async (req, res) => {
+  try {
+    const { userId } = req.query;
+    const room = await Room.findOne({
+      participants: { $all: [req.user._id, userId] },
+    });
+    if (!room) {
+      // Create a new room
+      const newRoom = new Room({
+        participants: [req.user._id, userId],
+        isGroup: false,
+      });
+
+      await newRoom.save();
+      ControllerResponse(res, 200, newRoom);
+      return;
+    }
+    ControllerResponse(res, 200, room);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");

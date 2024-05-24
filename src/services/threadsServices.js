@@ -78,14 +78,114 @@ module.exports.createThread = BigPromise(async (req, res) => {
 
 module.exports.readThread = BigPromise(async (req, res) => {
   try {
-    const thread = await Thread.findById(req.query.threadId);
+    const { threadId } = req.query;
+    const thread = await Thread.findById(threadId);
     if (!thread) {
+      return ErrorHandler(res, 400, "Thread not found");
+    }
+    if (thread.is_private && thread.user_id.toString() !== req.user._id.toString()) {
+      const isFollower = await Follow.findOne({
+        follower: req.user._id,
+        following: thread.user_id,
+      });
+      if (!isFollower) {
+        return ErrorHandler(res, 400, {
+          message: "This thread is private",
+          user_id: thread.user_id,
+        });
+      }
+    }
+
+    const threadsWithUserDetails = await Thread.aggregate([
+      {
+        $match: {
+          _id: new mongoose.Types.ObjectId(threadId),
+        },
+      },
+      {
+        $sort: { like_count: -1 },
+      },
+      {
+        $lookup: {
+          from: "threads",
+          let: { parentThreadId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+              },
+            },
+            {
+              $sort: { createdAt: -1 },
+            },
+            {
+              $limit: 3,
+            },
+          ],
+          as: "latestComments",
+        },
+      },
+    ]);
+
+    console.log(threadsWithUserDetails);
+
+    // Fetch comment users' details and map by ID
+    const commentUserIds = new Set();
+    threadsWithUserDetails.forEach((thread) => {
+      thread.latestComments.forEach((comment) => {
+        commentUserIds.add(comment.user_id.toString());
+      });
+    });
+
+    const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+
+    const commentUserMap = new Map(commentUsers.map((user) => [user._id.toString(), user]));
+
+    // Fetch user details for threads
+    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+
+    const threadIds = threadsWithUserDetails.map((thread) => thread._id);
+
+
+
+    const [users, threadLikes, reposts, saves] = await Promise.all([
+      Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
+      ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } }),
+      RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } }),
+      ThreadSaves.find({ saved_by: req.user._id, thread_id: { $in: threadIds } }),
+    ]);
+
+    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
+    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
+    const savedThreadsMap = new Map(saves.map((savedThread) => [savedThread.thread_id.toString(), true]));
+    const userMap = new Map(users.map((user) => [user._id.toString(), user]));
+    console.log(saves);
+
+    console.log(threadsWithUserDetails)
+    // Process threads and add necessary details
+    const fetchedThread = threadsWithUserDetails.map((thread) => {
+      thread.isReposted = repostsMap.get(thread._id.toString()) || false;
+      thread.isLiked = threadLikesMap.get(thread._id.toString()) || false;
+      thread.isSaved = savedThreadsMap.get(thread._id.toString()) || false;
+      const user = userMap.get(thread.user_id.toString());
+      thread.user = { ...user.toObject(), isOwner: user._id.toString() === req.user._id };
+
+      thread.commentUsers = thread.latestComments.map((comment) => ({
+        _id: comment.user_id,
+        profile_pic: commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
+      }));
+      delete thread.user_id;
+      delete thread.latestComments;
+      return thread;
+    });
+    if (!fetchedThread) {
       return ErrorHandler(res, 404, "Thread not found");
     }
 
-    ControllerResponse(res, 200, thread);
+    ControllerResponse(res, 200, fetchedThread[0]);
   } catch (err) {
-    ErrorHandler(res, 500, "Internal Server Error"); s
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
   }
 });
 
@@ -238,7 +338,7 @@ module.exports.readCommentReplies = BigPromise(async (req, res) => {
   try {
     const parentComment = await Thread.findById(commentId);
     if (!parentComment) {
-      return ErrorHandler(res, 404, "Parent Comment not found");
+      return ErrorHandler(res, 400, "Parent Comment not found");
     }
 
     const threadsWithUserDetails = await Thread.aggregate([
@@ -363,19 +463,19 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
       });
       await newLike.save();
       thread.like_count++;
-      const fcmTokens = await DeviceFCMToken.find({
-        $and: [
-          { user_id: thread.user_id },
-          { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-        ]
-      }, { fcm_token: 1, user_id: 1 });
-      console.log(fcmTokens);
-      if (fcmTokens.length > 0)
-        await FirebaseAdminService.sendNotifications({
-          fcmTokens: fcmTokens.map(
-            (fcmToken) => fcmToken.fcm_token
-          ), notification: "New Like", body: user.username + " just liked your thread"
-        });
+      // const fcmTokens = await DeviceFCMToken.find({
+      //   $and: [
+      //     { user_id: thread.user_id },
+      //     { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+      //   ]
+      // }, { fcm_token: 1, user_id: 1 });
+      // console.log(fcmTokens);
+      // if (fcmTokens.length > 0)
+      //   await FirebaseAdminService.sendNotifications({
+      //     fcmTokens: fcmTokens.map(
+      //       (fcmToken) => fcmToken.fcm_token
+      //     ), notification: "New Like", body: user.username + " just liked your thread"
+      //   });
     }
 
     await thread.save();
