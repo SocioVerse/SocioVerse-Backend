@@ -447,16 +447,19 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
     console.log(threadId);
     const likedBy = req.user._id;
     const user = await Users.findById(req.user._id);
+
+    const thread = await Thread.findById(threadId);
     const existingLike = await ThreadLikes.findOne({
       thread_id: threadId,
       liked_by: likedBy,
     });
-    const thread = await Thread.findById(threadId);
+
 
     if (existingLike) {
       await ThreadLikes.findByIdAndRemove(existingLike._id);
       thread.like_count--;
-    } else {
+    }
+    else {
       const newLike = new ThreadLikes({
         thread_id: threadId,
         liked_by: likedBy,

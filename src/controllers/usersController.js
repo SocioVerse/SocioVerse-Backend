@@ -8,7 +8,7 @@ const {
     fetchUserDetails,
     fetchFollowers,
     fetchFollowing,
-    toogleRepostThread,
+    toggleRepostThread,
     createFollowRequest,
     confirmFollowRequest,
     fetchFollowingThreads,
@@ -66,7 +66,7 @@ router.route("/fetch-following").get(auth, fetchFollowing);
 router.route("/fetch-following-threads").get(auth, fetchFollowingThreads);
 router.route("/fetch-following-feeds").get(auth, fetchFollowingFeeds);
 router.route("/fetch-latest-follow-request").get(auth, fetchLatestFollowRequests);
-router.route("/toogle-repost-thread").post(auth, toogleRepostThread);
+router.route("/toggle-repost-thread").post(auth, toggleRepostThread);
 router.route("/fetch-all-follow-request").get(auth, fetchAllFollowRequest);
 router.route("/get-activity").get(auth, fetchActivity);
 

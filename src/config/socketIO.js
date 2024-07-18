@@ -5,7 +5,7 @@ const User = require('../models/usersModel');
 const { socketAuth } = require('../middlewares/auth'); // Update the path
 const { default: mongoose } = require('mongoose');
 const messageListner = require("../listeners/messageListener");
-
+const { socketPopulate } = require("../middlewares/socketPopulat");
 
 const initializeSocketIO = (httpServer) => {
     const io = require("socket.io")(httpServer, {
@@ -16,7 +16,7 @@ const initializeSocketIO = (httpServer) => {
     const ioUse = async (socket, next) => {
         try {
             console.log(socket.handshake);
-            await socketAuth(socket.handshake, {}, next);
+            await socketPopulate(socket.handshake, {}, next);
             console.log(socket.handshake.user);
         } catch (error) {
             console.log(error);

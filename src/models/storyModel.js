@@ -19,7 +19,12 @@ const storySchema = new Schema(
             default: 0,
 
         },
+        like_count: {
 
+            type: Number,
+            default: 0,
+
+        },
 
 
 

@@ -128,7 +128,7 @@ module.exports.deleteOldStories = async () => {
 
 
 
-module.exports.toogleStoryLike = BigPromise(async (req, res) => {
+module.exports.toggleStoryLike = BigPromise(async (req, res) => {
     try {
         const { story_id } = req.body;
         const storyLike = await StoryLike.findOne({
@@ -137,8 +137,14 @@ module.exports.toogleStoryLike = BigPromise(async (req, res) => {
         });
 
 
+
+
         if (storyLike) {
-            storyLike.deleteOne();
+            await storyLike.deleteOne();
+            // decrement like count
+            await Story.findByIdAndUpdate(story_id, {
+                $inc: { like_count: -1 },
+            });
         }
         else {
             const newStoryLike = new StoryLike({
@@ -146,6 +152,11 @@ module.exports.toogleStoryLike = BigPromise(async (req, res) => {
                 liked_by: req.user._id,
             });
             await newStoryLike.save();
+            // increment like count
+
+            await Story.findByIdAndUpdate(story_id, {
+                $inc: { like_count: 1 },
+            });
         }
 
         ControllerResponse(res, 200, "Story Like Toggled Successfully");

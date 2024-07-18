@@ -19,4 +19,9 @@ const feedLikesSchema = new Schema(
     }
 );
 
+
+// Create a unique compound index on feed_id and liked_by
+feedLikesSchema.index({ feed_id: 1, liked_by: 1 }, { unique: true });
+
+
 module.exports = mongoose.model("feedLikes", feedLikesSchema);

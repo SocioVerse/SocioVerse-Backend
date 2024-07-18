@@ -446,25 +446,20 @@ module.exports.toggleFeedLike = BigPromise(async (req, res) => {
             feed_id: feedId,
             liked_by: likedBy,
         });
-        const feed = await Feed.findById(feedId);
 
-        if (existingLike) {
-            await FeedLikes.findByIdAndRemove(existingLike._id);
-            feed.like_count--;
-        } else {
+        if (!existingLike) {
             const newLike = new FeedLikes({
                 feed_id: feedId,
                 liked_by: likedBy,
             });
             await newLike.save();
-            feed.like_count++;
-            const fcmTokens = await DeviceFCMToken.find({
-                $and: [
-                    { user_id: feed.user_id },
-                    { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-                ]
-            }, { fcm_token: 1, user_id: 1 });
-            console.log(fcmTokens);
+            // const fcmTokens = await DeviceFCMToken.find({
+            //     $and: [
+            //         { user_id: feed.user_id },
+            //         { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+            //     ]
+            // }, { fcm_token: 1, user_id: 1 });
+            // console.log(fcmTokens);
             // if (fcmTokens.length > 0)
             //     await FirebaseAdminService.sendNotifications({
             //         fcmTokens: fcmTokens.map(
@@ -473,7 +468,11 @@ module.exports.toggleFeedLike = BigPromise(async (req, res) => {
             //     });
         }
 
-        await feed.save();
+        // update feed like count
+        const feed = await Feed.findByIdAndUpdate(feedId, {
+            $inc: { like_count: existingLike ? -1 : 1 },
+        }, { new: true });
+
 
 
         ControllerResponse(res, 200, "Like/Dislike toggled successfully");

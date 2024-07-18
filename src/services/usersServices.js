@@ -619,7 +619,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
-module.exports.toogleRepostThread = BigPromise(async (req, res) => {
+module.exports.toggleRepostThread = BigPromise(async (req, res) => {
   try {
     const { threadId } = req.body;
     const thread = await Thread.findById(threadId);
