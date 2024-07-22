@@ -25,6 +25,9 @@ const feeds = require("./controllers/feedsController");
 const hashtag = require("./controllers/hashtagController");
 const location = require("./controllers/locationController");
 const help = require("./controllers/helpController");
+const activity = require("./controllers/activityController");
+
+
 app.use("/api/users", users);
 app.use("/api/token", refresh);
 app.use("/api/threads", threads);
@@ -33,5 +36,6 @@ app.use("/api/feeds", feeds);
 app.use("/api/hashtags", hashtag);
 app.use("/api/location", location);
 app.use("/api/help", help);
+app.use("/api/activity", activity);
 
 module.exports = app;

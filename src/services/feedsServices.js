@@ -446,25 +446,20 @@ module.exports.toggleFeedLike = BigPromise(async (req, res) => {
             feed_id: feedId,
             liked_by: likedBy,
         });
-        const feed = await Feed.findById(feedId);
 
-        if (existingLike) {
-            await FeedLikes.findByIdAndRemove(existingLike._id);
-            feed.like_count--;
-        } else {
+        if (!existingLike) {
             const newLike = new FeedLikes({
                 feed_id: feedId,
                 liked_by: likedBy,
             });
             await newLike.save();
-            feed.like_count++;
-            const fcmTokens = await DeviceFCMToken.find({
-                $and: [
-                    { user_id: feed.user_id },
-                    { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-                ]
-            }, { fcm_token: 1, user_id: 1 });
-            console.log(fcmTokens);
+            // const fcmTokens = await DeviceFCMToken.find({
+            //     $and: [
+            //         { user_id: feed.user_id },
+            //         { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+            //     ]
+            // }, { fcm_token: 1, user_id: 1 });
+            // console.log(fcmTokens);
             // if (fcmTokens.length > 0)
             //     await FirebaseAdminService.sendNotifications({
             //         fcmTokens: fcmTokens.map(
@@ -473,7 +468,11 @@ module.exports.toggleFeedLike = BigPromise(async (req, res) => {
             //     });
         }
 
-        await feed.save();
+        // update feed like count
+        const feed = await Feed.findByIdAndUpdate(feedId, {
+            $inc: { like_count: existingLike ? -1 : 1 },
+        }, { new: true });
+
 
 
         ControllerResponse(res, 200, "Like/Dislike toggled successfully");
@@ -716,6 +715,19 @@ module.exports.getFeedById = BigPromise(async (req, res) => {
     try {
         const { feedId } = req.query;
         const feed = await Feed.findById(feedId);
+
+        if (!feed) {
+            return ErrorHandler(res, 400, "Feed not found");
+        }
+        if (feed.is_private) {
+            const isFollower = await Follow.findOne({
+                followed_by: req.user._id,
+                followed_to: feed.user_id,
+                is_confirmed: true,
+            });
+            if (!isFollower)
+                return ErrorHandler(res, 400, "Feed is private");
+        }
         const [tags, location, mentions, isLiked, isSaved, user, commentUsers] = await Promise.all([
             Hashtag.find({ _id: { $in: feed.tags } }),
             Location.findById(feed.location),
@@ -873,6 +885,38 @@ module.exports.fetchTrendingFeeds = BigPromise(async (req, res) => {
         ControllerResponse(res, 200, trendingFeeds);
     } catch (err) {
         console.log(err);
+        ErrorHandler(res, 500, "Internal Server Error");
+    }
+});
+
+module.exports.getFeedCommentById = BigPromise(async (req, res) => {
+    try {
+        const { commentId } = req.query;
+        const comment = await FeedComments.findById(commentId);
+        if (!comment) {
+            return ErrorHandler(res, 404, "Comment not found");
+        }
+        const user = await Users.findById(comment.user_id,
+            {
+                _id: 1,
+                username: 1,
+                profile_pic: 1,
+                occupation: 1,
+                email: 1,
+            }
+        );
+        const isLiked = await FeedCommetLikes.findOne({
+            comment_id: commentId,
+            liked_by: req.user._id,
+        });
+        comment._doc.isLiked = isLiked ? true : false;
+        comment._doc.user_id = {
+            ...user._doc,
+            isOwner: req.user._id.toString() === comment.user_id.toString() ? true : false,
+        };
+        ControllerResponse(res, 200, comment);
+    } catch (err) {
+        console.error(err);
         ErrorHandler(res, 500, "Internal Server Error");
     }
 });

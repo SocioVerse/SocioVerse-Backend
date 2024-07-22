@@ -21,6 +21,7 @@ const {
     searchHashtags,
     fetchFeedLikes,
     fetchTrendingFeeds,
+    getFeedCommentById,
     getFeedById
 } = require("../services/feedsServices");
 const { auth } = require("../middlewares/auth");
@@ -53,4 +54,6 @@ router.route("/search-hashtags").get(auth, searchHashtags); //Done
 
 router.route("/fetch-feed-likes").get(auth, fetchFeedLikes);//Done 
 router.route("/fetch-trending-feeds").get(auth, fetchTrendingFeeds);
+
+router.route("/fetch-comment-by-id").get(auth, getFeedCommentById); //Done
 module.exports = router;
