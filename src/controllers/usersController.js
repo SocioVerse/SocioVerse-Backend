@@ -37,6 +37,8 @@ const {
     unhideStory,
     getRoomId,
     getRecentRoomsInfo,
+    fetchAllStoryHiddenUsers,
+    changePassword
 } = require("../services/usersServices");
 const router = express.Router();
 const { auth } = require("../middlewares/auth");
@@ -83,6 +85,8 @@ router.route("/fetch-user-profile-details").get(auth, fetchUserProfileDetails);
 router.route("/fetch-user-feeds").get(auth, fetchUserFeeds);
 router.route("/fetch-reposted-thread").get(auth, fetchRepostedThread);
 router.route("/add-bio").post(auth, addBio);
+router.route("/change-password").post(auth, changePassword);
+
 
 //chat apis
 router.route("/get-room-info-by-user").get(auth, getRoomInfoByUser);
@@ -94,6 +98,7 @@ router.route("/fetch-all-stories").get(auth, fetchAllStories);
 router.route("/fetch-all-stories-seens").get(auth, fetchAllStoriesSeens);
 router.route("/hide-story").post(auth, hideStory);
 router.route("/unhide-story").post(auth, unhideStory);
+router.route("/fetch-all-story-hidden-users").get(auth, fetchAllStoryHiddenUsers);
 
 //chat apis
 router.route("/get-recent-rooms-info").get(auth, getRecentRoomsInfo);

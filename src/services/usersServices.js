@@ -1481,6 +1481,30 @@ module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
   }
 });
 
+// fetch all story hidden users
+module.exports.fetchAllStoryHiddenUsers = BigPromise(async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const user = await Users.findById(userId, {
+      story_hide_from: 1,
+    });
+    const users = await Users.find({
+      _id: { $in: user.story_hide_from },
+    }, {
+      _id: 1,
+      profile_pic: 1,
+      username: 1,
+      name: 1,
+      occupation: 1,
+      email: 1,
+    });
+    ControllerResponse(res, 200, users);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
 module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
   try {
     const { userId } = req.query;
@@ -1792,3 +1816,35 @@ module.exports.getRoomId = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 });
+
+module.exports.changePassword = BigPromise(async (req, res) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const
+
+      user = await Users.findById(req.user._id);
+    if (!user) {
+      return ErrorHandler(res, 404, "User not found");
+    }
+    const isMatch = await verifyPassword(oldPassword, user.password);
+    if (!isMatch) {
+      return ControllerResponse(res, 200,
+        {
+          message: "Old password is incorrect",
+          success: false
+
+        }
+      );
+    }
+    user.password = await hashPassword(newPassword);
+    await user.save();
+    ControllerResponse(res, 200, {
+      message: "Password changed successfully",
+      success: true
+    });
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+}
+);  

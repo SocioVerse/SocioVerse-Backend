@@ -888,3 +888,35 @@ module.exports.fetchTrendingFeeds = BigPromise(async (req, res) => {
         ErrorHandler(res, 500, "Internal Server Error");
     }
 });
+
+module.exports.getFeedCommentById = BigPromise(async (req, res) => {
+    try {
+        const { commentId } = req.query;
+        const comment = await FeedComments.findById(commentId);
+        if (!comment) {
+            return ErrorHandler(res, 404, "Comment not found");
+        }
+        const user = await Users.findById(comment.user_id,
+            {
+                _id: 1,
+                username: 1,
+                profile_pic: 1,
+                occupation: 1,
+                email: 1,
+            }
+        );
+        const isLiked = await FeedCommetLikes.findOne({
+            comment_id: commentId,
+            liked_by: req.user._id,
+        });
+        comment._doc.isLiked = isLiked ? true : false;
+        comment._doc.user_id = {
+            ...user._doc,
+            isOwner: req.user._id.toString() === comment.user_id.toString() ? true : false,
+        };
+        ControllerResponse(res, 200, comment);
+    } catch (err) {
+        console.error(err);
+        ErrorHandler(res, 500, "Internal Server Error");
+    }
+});
