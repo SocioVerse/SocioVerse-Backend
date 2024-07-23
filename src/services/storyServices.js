@@ -168,11 +168,7 @@ module.exports.toggleStoryLike = BigPromise(async (req, res) => {
 module.exports.storySeen = BigPromise(async (req, res) => {
     try {
         const { story_id } = req.body;
-        // nor story created by user
-        const story = await Story.findById(story_id);
-        if (story.user_id == req.user._id) {
-            return ControllerResponse(res, 200, "Story Seen Successfully");
-        }
+
         const alreadySeen = await StorySeen.findOne({
             story_id: story_id,
             seen_by: req.user._id,
