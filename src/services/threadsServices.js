@@ -42,12 +42,13 @@ module.exports.createThread = BigPromise(async (req, res) => {
   console.log(req.user);
   try {
     const { content, images, is_private, isBase, comments } = req.body;
+    console.log(content, images, is_private, isBase, comments);
     const newThread = new Thread({
       user_id: req.user._id,
       content,
       images,
       is_private: is_private || false,
-      isBase: isBase || true,
+      isBase: true,
       comment_count: comments.length,
     });
     await newThread.save();
