@@ -47,7 +47,7 @@ module.exports.createThread = BigPromise(async (req, res) => {
       content,
       images,
       is_private: is_private || false,
-      isBase: isBase || true,
+      isBase: true,
       comment_count: comments.length,
     });
     await newThread.save();
