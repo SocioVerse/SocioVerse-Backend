@@ -1966,7 +1966,7 @@ module.exports.removeFollowers = BigPromise(async (req, res) => {
 
 module.exports.generateEmailOtp = BigPromise(async (req, res) => {
   try {
-    const { email } = req.body;
+    const { email } = req.query;
     const verificationOTP = otpGenerator.generate(4, {
       upperCase: false,
       specialChars: false,
@@ -2036,7 +2036,7 @@ module.exports.generateEmailOtp = BigPromise(async (req, res) => {
 
 module.exports.verifyEmailOtp = BigPromise(async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp } = req.query;
     const otpVerification = await OtpVerification.findOne({
       email: email,
       otp,
