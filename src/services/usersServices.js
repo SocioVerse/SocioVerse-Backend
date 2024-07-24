@@ -2048,7 +2048,7 @@ module.exports.verifyEmailOtp = BigPromise(async (req, res) => {
     }
     await OtpVerification.deleteOne({ _id: otpVerification._id });
 
-    return ControllerResponse(res, 200, "Email verified successfully");
+    return ControllerResponse(res, 200, true);
   } catch (err) {
     console.error(err);
     ErrorHandler(res, 500, "Internal Server Error");
