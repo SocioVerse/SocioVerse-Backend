@@ -3,9 +3,8 @@ const Schema = mongoose.Schema;
 
 const emailVerification = new Schema(
   {
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: "users",
+    email: {
+      type: String,
       required: true,
     },
     otp: {
