@@ -129,22 +129,39 @@ module.exports.signup = BigPromise(async (req, res) => {
 });
 
 module.exports.login = BigPromise(async (req, res) => {
-  const { usernameOrEmail, password, fcmToken } = req.body;
-  if (!usernameOrEmail || !password) {
+  const { usernameOrEmail, password, fcmToken, email, otp } = req.body;
+  if ((!usernameOrEmail || !password) && (!email || !otp)) {
     return ErrorHandler(res, 400, "Username/Email and password are required");
   }
   try {
+    const query = usernameOrEmail ?? email;
+
     const user = await Users.findOne({
-      $or: [{ username: usernameOrEmail }, { email: usernameOrEmail }],
+      $or: [{ username: query }, { email: query }],
     });
 
     if (!user) {
       return ErrorHandler(res, 400, "Invalid credentials");
     }
+    console.log(user);
+    if (password == null && otp != null) {
 
-    const isPasswordValid = await verifyPassword(password, user.password);
-    if (!isPasswordValid) {
-      return ErrorHandler(res, 400, "Invalid credentials");
+      const otpVerification = await OtpVerification.findOne({
+        email: email,
+        otp,
+
+      }).sort({ createdAt: -1 });
+
+      if (!otpVerification) {
+        return ErrorHandler(res, 400, "Invalid or expired OTP");
+      }
+
+      await OtpVerification.deleteOne({ _id: otpVerification._id });
+    } else {
+      const isPasswordValid = await verifyPassword(password, user.password);
+      if (!isPasswordValid) {
+        return ErrorHandler(res, 400, "Invalid credentials");
+      }
     }
     const access_token = jwt.sign({
       _id: user._id,
@@ -2009,12 +2026,12 @@ module.exports.verifyEmailOtp = BigPromise(async (req, res) => {
     const otpVerification = await OtpVerification.findOne({
       email: email,
       otp,
-      expiresAt: { $gt: new Date() },
-    });
+    }).sort({ createdAt: -1 });
 
     if (!otpVerification) {
       return ErrorHandler(res, 400, "Invalid or expired OTP");
     }
+
     await OtpVerification.deleteOne({ _id: otpVerification._id });
 
     return ControllerResponse(res, 200, true);
