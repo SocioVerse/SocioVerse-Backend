@@ -87,8 +87,8 @@ router.route("/fetch-user-feeds").get(auth, fetchUserFeeds);
 router.route("/fetch-reposted-thread").get(auth, fetchRepostedThread);
 router.route("/add-bio").post(auth, addBio);
 router.route("/change-password").post(auth, changePassword);
-router.route("/generate-otp").post(generateEmailOtp);
-router.route("/verify-otp").post(verifyEmailOtp);
+router.route("/generate-otp").get(generateEmailOtp);
+router.route("/verify-otp").get(verifyEmailOtp);
 
 
 //chat apis
