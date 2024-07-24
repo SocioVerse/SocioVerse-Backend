@@ -47,8 +47,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     dob,
     profile_pic,
     face_image_dataset,
-    fcmToken
-
+    fcmToken,
   } = req.body;
   console.log(req.body);
   if (checkEmail(email) == false) {
@@ -98,7 +97,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     await RefreshToken({ token: refresh_token }).save();
     await DeviceFCMToken({
       user_id: user._id,
-      fcm_token: fcmToken
+      fcm_token: fcmToken,
     }).save();
     delete user._doc.password;
 
@@ -162,7 +161,7 @@ module.exports.login = BigPromise(async (req, res) => {
     await RefreshToken({ token: refresh_token }).save();
     await DeviceFCMToken({
       user_id: user._id,
-      fcm_token: fcmToken
+      fcm_token: fcmToken,
     }).save();
     delete user._doc.password;
     return ControllerResponse(res, 200, {
@@ -188,8 +187,6 @@ module.exports.logout = BigPromise(async (req, res) => {
   }
 });
 
-
-
 module.exports.verifyEmailExists = BigPromise(async (req, res) => {
   try {
     const { email } = req.query;
@@ -197,12 +194,9 @@ module.exports.verifyEmailExists = BigPromise(async (req, res) => {
       return ErrorHandler(res, 400, "Invalid Email");
     }
 
-
-
     const user = await Users.findOne({ email: email });
     if (user) {
-      return ErrorHandler(res, 400,
-        "Email already exists");
+      return ErrorHandler(res, 400, "Email already exists");
     }
     return ControllerResponse(res, 200, {
       email_exists: false,
@@ -256,8 +250,7 @@ module.exports.updateUserProfile = BigPromise(async (req, res) => {
         return ErrorHandler(res, 400, "Username already exists");
       }
     }
-    await Users.findByIdAndUpdate(_id,
-      updateData);
+    await Users.findByIdAndUpdate(_id, updateData);
 
     await user.save();
     delete user._doc.password;
@@ -541,7 +534,7 @@ module.exports.fetchFollowers = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user"
+        $unwind: "$user",
       },
       {
         $project: {
@@ -591,7 +584,7 @@ module.exports.fetchFollowing = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user"
+        $unwind: "$user",
       },
       {
         $project: {
@@ -645,21 +638,22 @@ module.exports.toggleRepostThread = BigPromise(async (req, res) => {
       reposted_by: req.user._id,
     });
     await newRepost.save();
-    const fcmTokens = await DeviceFCMToken.find({
-      $and: [
-        { user_id: thread.user_id },
-        { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-      ]
-    }, { fcm_token: 1, user_id: 1 });
+    const fcmTokens = await DeviceFCMToken.find(
+      {
+        $and: [
+          { user_id: thread.user_id },
+          { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } },
+        ],
+      },
+      { fcm_token: 1, user_id: 1 }
+    );
     console.log(fcmTokens);
     if (fcmTokens.length > 0)
-      await FirebaseAdminService.
-        sendNotifications({
-          fcmTokens: fcmTokens.map(
-            (fcmToken) => fcmToken.fcm_token
-          ), notification: "Repost", body: user.username + " just reposted your thread"
-        });
-
+      await FirebaseAdminService.sendNotifications({
+        fcmTokens: fcmTokens.map((fcmToken) => fcmToken.fcm_token),
+        notification: "Repost",
+        body: user.username + " just reposted your thread",
+      });
 
     ControllerResponse(res, 200, "Thread Reposted");
   } catch (err) {
@@ -669,15 +663,13 @@ module.exports.toggleRepostThread = BigPromise(async (req, res) => {
 });
 
 module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
-
-
   try {
     const { _id } = req.user;
     // Fetch followingUserIds directly without aggregation
     const followingUsers = await Follow.find({
       followed_by: _id,
       is_confirmed: true,
-    }).distinct('followed_to');
+    }).distinct("followed_to");
 
     // Fetch threads with comments
     const threadsWithUserDetails = await Thread.aggregate([
@@ -697,7 +689,12 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+                $expr: {
+                  $and: [
+                    { $eq: ["$$parentThreadId", "$parent_thread"] },
+                    { $ne: ["$$parentThreadId", "$_id"] },
+                  ],
+                },
               },
             },
             {
@@ -720,27 +717,50 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       });
     });
 
-    const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+    const commentUsers = await Users.find(
+      { _id: { $in: Array.from(commentUserIds) } },
+      { _id: 1, profile_pic: 1 }
+    );
 
-    const commentUserMap = new Map(commentUsers.map((user) => [user._id.toString(), user]));
+    const commentUserMap = new Map(
+      commentUsers.map((user) => [user._id.toString(), user])
+    );
 
     // Fetch user details for threads
-    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+    const threadUserIds = threadsWithUserDetails.map(
+      (thread) => thread.user_id
+    );
 
     const threadIds = threadsWithUserDetails.map((thread) => thread._id);
 
-
-
     const [users, threadLikes, reposts, saves] = await Promise.all([
-      Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
-      ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } }),
-      RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } }),
-      ThreadSaves.find({ saved_by: req.user._id, thread_id: { $in: threadIds } }),
+      Users.find(
+        { _id: { $in: threadUserIds } },
+        { _id: 1, username: 1, occupation: 1, profile_pic: 1 }
+      ),
+      ThreadLikes.find({
+        liked_by: req.user._id,
+        thread_id: { $in: threadIds },
+      }),
+      RepostedThread.find({
+        reposted_by: req.user._id,
+        thread_id: { $in: threadIds },
+      }),
+      ThreadSaves.find({
+        saved_by: req.user._id,
+        thread_id: { $in: threadIds },
+      }),
     ]);
 
-    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
-    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
-    const savedThreadsMap = new Map(saves.map((savedThread) => [savedThread.thread_id.toString(), true]));
+    const threadLikesMap = new Map(
+      threadLikes.map((like) => [like.thread_id.toString(), true])
+    );
+    const repostsMap = new Map(
+      reposts.map((repost) => [repost.thread_id.toString(), true])
+    );
+    const savedThreadsMap = new Map(
+      saves.map((savedThread) => [savedThread.thread_id.toString(), true])
+    );
     const userMap = new Map(users.map((user) => [user._id.toString(), user]));
     console.log(saves);
     // Process threads and add necessary details
@@ -749,11 +769,15 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       thread.isLiked = threadLikesMap.get(thread._id.toString()) || false;
       thread.isSaved = savedThreadsMap.get(thread._id.toString()) || false;
       const user = userMap.get(thread.user_id.toString());
-      thread.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
+      thread.user = {
+        ...user.toObject(),
+        isOwner: user._id.toString() === _id,
+      };
 
       thread.commentUsers = thread.latestComments.map((comment) => ({
         _id: comment.user_id,
-        profile_pic: commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
+        profile_pic:
+          commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
       }));
       delete thread.user_id;
       delete thread.latestComments;
@@ -897,10 +921,7 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
       });
 
       ControllerResponse(res, 200, "Follow Request Sent Succesfully Deleted");
-
-    }
-    else {
-
+    } else {
       // Create a new follow request
       const followRequest = new Follow({
         followed_by: new mongoose.Types.ObjectId(requestingUserId),
@@ -910,18 +931,21 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
 
       await followRequest.save();
       const user = await Users.findById(requestingUserId);
-      const fcmTokens = await DeviceFCMToken.find({
-        $and: [
-          { user_id: targetUserId },
-          { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-        ]
-      }, { fcm_token: 1 });
+      const fcmTokens = await DeviceFCMToken.find(
+        {
+          $and: [
+            { user_id: targetUserId },
+            { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } },
+          ],
+        },
+        { fcm_token: 1 }
+      );
       console.log(fcmTokens);
       if (fcmTokens.length > 0)
         await FirebaseAdminService.sendNotifications({
-          fcmTokens: fcmTokens.map(
-            (fcmToken) => fcmToken.fcm_token
-          ), notification: "New Request", body: user.username + " just send you a follow request"
+          fcmTokens: fcmTokens.map((fcmToken) => fcmToken.fcm_token),
+          notification: "New Request",
+          body: user.username + " just send you a follow request",
         });
       ControllerResponse(res, 200, "Follow Request Sent Succesfully");
     }
@@ -956,8 +980,6 @@ module.exports.unFollowUser = BigPromise(async (req, res) => {
       followed_to: new mongoose.Types.ObjectId(targetUserId),
     });
 
-
-
     ControllerResponse(res, 200, "Follow Request Sent Succesfully");
   } catch (err) {
     ErrorHandler(res, 500, "Internal Server Error");
@@ -968,7 +990,6 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
   try {
     const requestingUserId = req.user._id;
     const { targetUserId } = req.body;
-
 
     const userExists = await Users.findOne({
       _id: new mongoose.Types.ObjectId(targetUserId),
@@ -1082,7 +1103,8 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
         followed_by: req.user._id,
         followed_to: userId,
       });
-      user._doc.state = isFollowing != null ? (isFollowing.is_confirmed == true ? 2 : 1) : 0;
+      user._doc.state =
+        isFollowing != null ? (isFollowing.is_confirmed == true ? 2 : 1) : 0;
     }
 
     if (user._doc.state == 0 || user._doc.state == 1) {
@@ -1103,7 +1125,12 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+                $expr: {
+                  $and: [
+                    { $eq: ["$$parentThreadId", "$parent_thread"] },
+                    { $ne: ["$$parentThreadId", "$_id"] },
+                  ],
+                },
               },
             },
             {
@@ -1116,7 +1143,6 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
           as: "latestComments",
         },
       },
-
     ]);
     // Fetch comment users' details and map by ID
     const commentUserIds = new Set();
@@ -1126,34 +1152,68 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
       });
     });
 
-    const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+    const commentUsers = await Users.find(
+      { _id: { $in: Array.from(commentUserIds) } },
+      { _id: 1, profile_pic: 1 }
+    );
 
-    const commentUserMap = new Map(commentUsers.map((user) => [user._id.toString(), user]));
+    const commentUserMap = new Map(
+      commentUsers.map((user) => [user._id.toString(), user])
+    );
     // Array of user IDs from threads
-    const threadUserIds = threadsWithUserDetails.map((thread) => thread.user_id);
+    const threadUserIds = threadsWithUserDetails.map(
+      (thread) => thread.user_id
+    );
 
     const users = new Map();
     for (const threadUserId of threadUserIds) {
-      const user = await Users.findById(threadUserId, { _id: 1, username: 1, occupation: 1, profile_pic: 1 });
+      const user = await Users.findById(threadUserId, {
+        _id: 1,
+        username: 1,
+        occupation: 1,
+        profile_pic: 1,
+      });
       users.set(threadUserId.toString(), user);
     }
     const threadIds = threadsWithUserDetails.map((thread) => thread._id);
 
-    const threadLikes = await ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } });
-    const reposts = await RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } });
-    const savedThreads = await ThreadSaves.find({ saved_by: req.user._id, thread_id: { $in: threadIds } });
-    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
-    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
-    const savedThreadsMap = new Map(savedThreads.map((savedThread) => [savedThread.thread_id.toString(), true]));
+    const threadLikes = await ThreadLikes.find({
+      liked_by: req.user._id,
+      thread_id: { $in: threadIds },
+    });
+    const reposts = await RepostedThread.find({
+      reposted_by: req.user._id,
+      thread_id: { $in: threadIds },
+    });
+    const savedThreads = await ThreadSaves.find({
+      saved_by: req.user._id,
+      thread_id: { $in: threadIds },
+    });
+    const threadLikesMap = new Map(
+      threadLikes.map((like) => [like.thread_id.toString(), true])
+    );
+    const repostsMap = new Map(
+      reposts.map((repost) => [repost.thread_id.toString(), true])
+    );
+    const savedThreadsMap = new Map(
+      savedThreads.map((savedThread) => [
+        savedThread.thread_id.toString(),
+        true,
+      ])
+    );
     for (const thread of threadsWithUserDetails) {
       thread.isReposted = !!repostsMap.get(thread._id.toString());
       thread.isLiked = !!threadLikesMap.get(thread._id.toString());
       thread.isSaved = !!savedThreadsMap.get(thread._id.toString());
       const user = users.get(thread.user_id.toString());
-      thread.user = { ...user.toObject(), isOwner: user._id.toString() === req.user._id };
+      thread.user = {
+        ...user.toObject(),
+        isOwner: user._id.toString() === req.user._id,
+      };
       thread.commentUsers = thread.latestComments.map((comment) => ({
         _id: comment.user_id,
-        profile_pic: commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
+        profile_pic:
+          commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
       }));
       delete thread.user_id;
       delete thread.latestComments;
@@ -1161,8 +1221,6 @@ module.exports.fetchUserProfileDetails = BigPromise(async (req, res) => {
     console.log({ user, threadsWithUserDetails });
 
     ControllerResponse(res, 200, { user, threadsWithUserDetails });
-
-
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -1178,8 +1236,6 @@ module.exports.addBio = BigPromise(async (req, res) => {
     }
     user.bio = bio;
     await user.save();
-
-
 
     ControllerResponse(res, 200, "Bio added successfully");
 
@@ -1240,7 +1296,9 @@ module.exports.fetchUserFeeds = BigPromise(async (req, res) => {
 module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
   try {
     const userId = req.query.userId ?? req.user._id;
-    const repostedThreadsIds = await RepostedThread.find({ reposted_by: userId }).select("thread_id");
+    const repostedThreadsIds = await RepostedThread.find({
+      reposted_by: userId,
+    }).select("thread_id");
 
     const threadsWithUserDetails = await Thread.aggregate([
       {
@@ -1258,7 +1316,12 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
           pipeline: [
             {
               $match: {
-                $expr: { $and: [{ $eq: ["$$parentThreadId", "$parent_thread"] }, { $ne: ["$$parentThreadId", "$_id"] }] },
+                $expr: {
+                  $and: [
+                    { $eq: ["$$parentThreadId", "$parent_thread"] },
+                    { $ne: ["$$parentThreadId", "$_id"] },
+                  ],
+                },
               },
             },
             {
@@ -1280,21 +1343,46 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
       });
     });
 
-    const commentUsers = await Users.find({ _id: { $in: Array.from(commentUserIds) } }, { _id: 1, profile_pic: 1 });
+    const commentUsers = await Users.find(
+      { _id: { $in: Array.from(commentUserIds) } },
+      { _id: 1, profile_pic: 1 }
+    );
 
-    const commentUserMap = new Map(commentUsers.map((user) => [user._id.toString(), user]));
+    const commentUserMap = new Map(
+      commentUsers.map((user) => [user._id.toString(), user])
+    );
     const threadIds = threadsWithUserDetails.map((thread) => thread._id);
 
     const [user, threadLikes, reposts, saves] = await Promise.all([
-      Users.findById(userId, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
-      ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } }),
-      RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } }),
-      ThreadSaves.find({ saved_by: req.user._id, thread_id: { $in: threadIds } }),
+      Users.findById(userId, {
+        _id: 1,
+        username: 1,
+        occupation: 1,
+        profile_pic: 1,
+      }),
+      ThreadLikes.find({
+        liked_by: req.user._id,
+        thread_id: { $in: threadIds },
+      }),
+      RepostedThread.find({
+        reposted_by: req.user._id,
+        thread_id: { $in: threadIds },
+      }),
+      ThreadSaves.find({
+        saved_by: req.user._id,
+        thread_id: { $in: threadIds },
+      }),
     ]);
 
-    const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
-    const repostsMap = new Map(reposts.map((repost) => [repost.thread_id.toString(), true]));
-    const savedThreadsMap = new Map(saves.map((savedThread) => [savedThread.thread_id.toString(), true]));
+    const threadLikesMap = new Map(
+      threadLikes.map((like) => [like.thread_id.toString(), true])
+    );
+    const repostsMap = new Map(
+      reposts.map((repost) => [repost.thread_id.toString(), true])
+    );
+    const savedThreadsMap = new Map(
+      saves.map((savedThread) => [savedThread.thread_id.toString(), true])
+    );
 
     threadsWithUserDetails.forEach((thread) => {
       thread.isReposted = !!repostsMap.get(thread._id.toString());
@@ -1303,15 +1391,14 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
       thread.user = user;
       thread.commentUsers = thread.latestComments.map((comment) => ({
         _id: comment.user_id,
-        profile_pic: commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
+        profile_pic:
+          commentUserMap.get(comment.user_id.toString())?.profile_pic || null,
       }));
       delete thread.user_id;
       delete thread.latestComments;
     });
 
     return ControllerResponse(res, 200, threadsWithUserDetails);
-
-
   } catch (err) {
     console.log(err);
     ErrorHandler(res, 500, "Internal Server Error");
@@ -1368,7 +1455,7 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$user"
+        $unwind: "$user",
       },
       {
         $project: {
@@ -1388,7 +1475,10 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
       stories[i].user.isStoryHidden = owner.story_hide_from.includes(stories[i].user._id);
       const countOfStory = await Story.countDocuments({ user_id: stories[i].user._id });
       const countedStories = await Story.find({ user_id: stories[i].user._id });
-      const countOfSeenStory = await StorySeen.countDocuments({ seen_by: userId, story_id: { $in: countedStories.map((story) => story._id) } });
+      const countOfSeenStory = await StorySeen.countDocuments({
+        seen_by: userId,
+        story_id: { $in: countedStories.map((story) => story._id) },
+      });
       console.log(countOfStory, countOfSeenStory);
       stories[i].is_all_seen = countOfStory == countOfSeenStory;
     }
@@ -1399,8 +1489,7 @@ module.exports.fetchAllStories = BigPromise(async (req, res) => {
       stories.splice(stories.indexOf(ownerStory), 1);
       stories.sort((a, b) => b.is_all_seen - a.is_all_seen);
       stories.unshift(ownerStory);
-    }
-    else {
+    } else {
       stories.sort((a, b) => b.is_all_seen - a.is_all_seen);
       stories.unshift({
         user: { ...owner._doc, isOwner: true },
@@ -1449,7 +1538,6 @@ module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
     const users = [];
     let owner;
     for (const user of seenBy) {
-
       const userDetail = await Users.findById(user.seen_by, {
         _id: 1,
         profile_pic: 1,
@@ -1457,10 +1545,13 @@ module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
         name: 1,
         occupation: 1,
         email: 1,
-
       });
       //liked by user
-      userDetail._doc.isLiked = await StoryLike.findOne({ liked_by: user.seen_by, story_id: story_id }) != null;
+      userDetail._doc.isLiked =
+        (await StoryLike.findOne({
+          liked_by: user.seen_by,
+          story_id: story_id,
+        })) != null;
       if (userDetail._doc._id.toString() == userId.toString()) {
         owner = userDetail._doc;
         owner.isOwner = true;
@@ -1472,7 +1563,6 @@ module.exports.fetchAllStoriesSeens = BigPromise(async (req, res) => {
     users.sort((a, b) => b.isLiked - a.isLiked);
     users.unshift(owner);
     const likeCount = await StoryLike.countDocuments({ story_id: story_id });
-
 
     ControllerResponse(res, 200, { likeCount, users });
   } catch (err) {
@@ -1542,7 +1632,7 @@ module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
         },
       },
       {
-        $unwind: "$sender"
+        $unwind: "$sender",
       },
       {
         $project: {
@@ -1566,7 +1656,8 @@ module.exports.getRoomInfoByUser = BigPromise(async (req, res) => {
     ]);
     const updatedMessages = messages.map((message) => {
       message.isSeenByAll = message.seenBy.length === room.participants.length;
-      message.sender.isOwner = message.sender._id.toString() === req.user._id.toString();
+      message.sender.isOwner =
+        message.sender._id.toString() === req.user._id.toString();
       return message;
     });
 
@@ -1593,8 +1684,6 @@ module.exports.createRoom = BigPromise(async (req, res) => {
 
 module.exports.allRecentChats = BigPromise(async (req, res) => {
   try {
-
-
     // req.user._id is present in participants array
     const rooms = await Room.find({
       participants: req.user._id,
@@ -1645,11 +1734,7 @@ module.exports.allRecentChats = BigPromise(async (req, res) => {
       room._doc.unreadMessages = unreadMessages;
     }
 
-
-
     console.log(rooms);
-
-
 
     ControllerResponse(res, 200, rooms);
   } catch (err) {

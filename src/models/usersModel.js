@@ -88,6 +88,10 @@ const userSchema = new Schema(
       },
 
     ],
+    email_verified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
