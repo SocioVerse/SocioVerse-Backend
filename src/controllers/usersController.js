@@ -43,15 +43,13 @@ const {
 } = require("../services/usersServices");
 const router = express.Router();
 const { auth } = require("../middlewares/auth");
-
-
+const { generateOtp, verifyOtp } = require("../services/emailService");
 
 // PUBLIC APIs
 router.route("/signup").post(signup);
 router.route("/login").post(login);
 router.route("/verify-email-exists").get(verifyEmailExists);
 router.route("/verify-username-exists").get(verifyUsernameExists);
-
 
 // PRIVATE APIs
 
