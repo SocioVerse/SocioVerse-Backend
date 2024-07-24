@@ -1914,15 +1914,17 @@ module.exports.changePassword = BigPromise(async (req, res) => {
     if (!user) {
       return ErrorHandler(res, 404, "User not found");
     }
-    const isMatch = await verifyPassword(oldPassword, user.password);
-    if (!isMatch) {
-      return ControllerResponse(res, 200,
-        {
-          message: "Old password is incorrect",
-          success: false
+    if (oldPassword != null) {
+      const isMatch = await verifyPassword(oldPassword, user.password);
+      if (!isMatch) {
+        return ControllerResponse(res, 200,
+          {
+            message: "Old password is incorrect",
+            success: false
 
-        }
-      );
+          }
+        );
+      }
     }
     user.password = await hashPassword(newPassword);
     await user.save();
