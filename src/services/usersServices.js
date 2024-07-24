@@ -115,7 +115,6 @@ module.exports.signup = BigPromise(async (req, res) => {
           }
         );
     }
-    console.log(response);
     return ControllerResponse(res, 200, {
       message: "Signup Successfull!",
       ...user._doc,
