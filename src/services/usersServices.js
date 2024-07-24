@@ -105,7 +105,7 @@ module.exports.signup = BigPromise(async (req, res) => {
     delete user._doc.password;
 
     //Add image to faceDataSet
-    if (user.face_image_dataset.length > 0) {
+    if (face_image_dataset != null && user.face_image_dataset.length > 0) {
       response = await axios
         .post(
           `https://j007acky-facerecog.hf.space/user/`
