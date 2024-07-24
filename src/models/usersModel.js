@@ -80,6 +80,10 @@ const userSchema = new Schema(
       type: String,
       trim: true,
     },
+    email_verified: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,

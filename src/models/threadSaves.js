@@ -4,12 +4,12 @@ const savedThreadsSchema = new Schema(
   {
     thread_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "threadsSchema",
+      ref: "threads",
       required: true,
     },
     saved_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "userSchema",
+      ref: "users",
       required: true,
     },
   },
@@ -18,4 +18,4 @@ const savedThreadsSchema = new Schema(
   }
 );
 
-module.exports = mongoose.model("threadSaves", savedThreadsSchema);
+module.exports = mongoose.model("ThreadSaves", savedThreadsSchema);

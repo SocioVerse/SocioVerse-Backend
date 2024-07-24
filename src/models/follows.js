@@ -4,12 +4,12 @@ const followsSchema = new Schema(
   {
     followed_by: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "userSchema",
+      ref: "users",
       required: true,
     },
     followed_to: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "userSchema",
+      ref: "users",
       required: true,
     },
     is_confirmed: {

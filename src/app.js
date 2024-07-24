@@ -19,9 +19,17 @@ app.use(morgan("tiny"));
 const refresh = require("./controllers/refreshController");
 const users = require("./controllers/usersController");
 const threads = require("./controllers/threadsController");
+const stories = require("./controllers/storyController");
+const feeds = require("./controllers/feedsController");
+const hashtag = require("./controllers/hashtagController");
+const location = require("./controllers/locationController");
 
 app.use("/api/users", users);
 app.use("/api/token", refresh);
 app.use("/api/threads", threads);
+app.use("/api/stories", stories);
+app.use("/api/feeds", feeds);
+app.use("/api/hashtags", hashtag);
+app.use("/api/location", location);
 
 module.exports = app;

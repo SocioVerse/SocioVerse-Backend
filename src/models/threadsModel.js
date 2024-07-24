@@ -4,12 +4,12 @@ const threadsSchema = new Schema(
   {
     user_id: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "userSchema",
+      ref: "users",
       required: true,
     },
     parent_thread: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "threadsSchema",
+      ref: "threads",
       required: true,
       default: function () {
         return this._id;

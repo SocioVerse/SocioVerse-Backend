@@ -14,7 +14,12 @@ const {
   toggleThreadSave,
   getSavedThreads,
 } = require("../services/threadsServices");
-const auth = require("../middlewares/auth");
+const { auth } = require("../middlewares/auth");
+
+
+
+
+
 
 router.route("/create-new-thread").post(auth, createThread); //Done
 router.route("/update-thread").put(auth, updateThread); //Done
