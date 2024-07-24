@@ -778,11 +778,12 @@ module.exports.fetchTrendingThreads = BigPromise(async (req, res) => {
 
 
 
-    const [users, threadLikes, reposts, saves] = await Promise.all([
+    const [users, threadLikes, reposts, saves, following] = await Promise.all([
       Users.find({ _id: { $in: threadUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
       ThreadLikes.find({ liked_by: req.user._id, thread_id: { $in: threadIds } }),
       RepostedThread.find({ reposted_by: req.user._id, thread_id: { $in: threadIds } }),
       ThreadSaves.find({ saved_by: req.user._id, thread_id: { $in: threadIds } }),
+      (await Follow.find({ followed_by: req.user._id, is_confirmed: true })).map((follow) => follow.followed_to.toString()),
     ]);
 
     const threadLikesMap = new Map(threadLikes.map((like) => [like.thread_id.toString(), true]));
@@ -796,7 +797,7 @@ module.exports.fetchTrendingThreads = BigPromise(async (req, res) => {
       thread.isLiked = threadLikesMap.get(thread._id.toString()) || false;
       thread.isSaved = savedThreadsMap.get(thread._id.toString()) || false;
       const user = userMap.get(thread.user_id.toString());
-      thread.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
+      thread.user = { ...user.toObject(), isOwner: user._id.toString() === _id, isFollowing: following.includes(thread.user_id.toString()) };
 
       thread.commentUsers = thread.latestComments.map((comment) => ({
         _id: comment.user_id,
