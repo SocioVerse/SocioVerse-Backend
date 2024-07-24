@@ -1847,4 +1847,31 @@ module.exports.changePassword = BigPromise(async (req, res) => {
     ErrorHandler(res, 500, "Internal Server Error");
   }
 }
-);  
+);
+
+module.exports.removeFollowers = BigPromise(async (req, res) => {
+
+  try {
+    const { userId } = req.query;
+    const user = await Users.findById(userId);
+    if (!user) {
+      return ErrorHandler(res, 404, "User not found");
+    }
+    await Follow.deleteOne({
+      followed_by: userId,
+      followed_to: req.user._id,
+    });
+    await Users.updateOne(
+      { _id: userId },
+      { $inc: { following_count: -1 } }
+    );
+    await Users.updateOne(
+      { _id: req.user._id },
+      { $inc: { followers_count: -1 } }
+    );
+    ControllerResponse(res, 200, "Follower removed successfully");
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});

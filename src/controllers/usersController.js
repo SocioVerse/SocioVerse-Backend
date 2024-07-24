@@ -38,7 +38,8 @@ const {
     getRoomId,
     getRecentRoomsInfo,
     fetchAllStoryHiddenUsers,
-    changePassword
+    changePassword,
+    removeFollowers
 } = require("../services/usersServices");
 const router = express.Router();
 const { auth } = require("../middlewares/auth");
@@ -71,6 +72,7 @@ router.route("/fetch-latest-follow-request").get(auth, fetchLatestFollowRequests
 router.route("/toggle-repost-thread").post(auth, toggleRepostThread);
 router.route("/fetch-all-follow-request").get(auth, fetchAllFollowRequest);
 router.route("/get-activity").get(auth, fetchActivity);
+router.route("/remove-follower").delete(auth, removeFollowers);
 
 
 //search api
