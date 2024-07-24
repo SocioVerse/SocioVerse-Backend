@@ -719,12 +719,13 @@ module.exports.getFeedById = BigPromise(async (req, res) => {
         if (!feed) {
             return ErrorHandler(res, 400, "Feed not found");
         }
-        if (feed.is_private) {
-            const isFollower = await Follow.findOne({
+        if (req.user._id.toString() !== feed.user_id.toString() && feed.is_private) {
+            const isFollower = await Follow.countDocuments({
                 followed_by: req.user._id,
                 followed_to: feed.user_id,
                 is_confirmed: true,
             });
+
             if (!isFollower)
                 return ErrorHandler(res, 400, "Feed is private");
         }
