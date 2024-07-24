@@ -855,8 +855,7 @@ module.exports.fetchTrendingFeeds = BigPromise(async (req, res) => {
             FeedSaves.find({ saved_by: req.user._id, feed_id: { $in: feedIds } }),
             Hashtag.find({ _id: { $in: alltags } }),
             Location.find({ _id: { $in: feedsWithUserDetails.map(feed => feed.location) } }),
-            Follow.find({ followed_by: req.user._id, is_confirmed: true })
-        ]);
+            (await Follow.find({ followed_by: req.user._id, is_confirmed: true })).map((follow) => follow.followed_to.toString()),]);
 
         const feedLikesMap = new Map(feedLikes.map((like) => [like.feed_id.toString(), true]));
         const savedFeedsMap = new Map(saves.map((savedFeed) => [savedFeed.feed_id.toString(), true]));
