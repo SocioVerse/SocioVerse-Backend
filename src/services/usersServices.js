@@ -1192,7 +1192,7 @@ module.exports.addBio = BigPromise(async (req, res) => {
 
 module.exports.fetchUserFeeds = BigPromise(async (req, res) => {
   try {
-    isFollower = await Follow.findOne({
+    let isFollower = await Follow.countDocuments({
       followed_by: req.user._id,
       followed_to: req.query.userId ?? req.user._id,
       is_confirmed: true
@@ -1202,7 +1202,7 @@ module.exports.fetchUserFeeds = BigPromise(async (req, res) => {
     const feeds = await Feed.find({
       user_id: req.query.userId ?? req.user._id,
       $or: [
-        { is_private: isFollower != null ? false : true },
+        { is_private: isFollower ? true : false },
         { is_private: false }
       ]
     }, {
