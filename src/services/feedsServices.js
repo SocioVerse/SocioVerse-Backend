@@ -849,13 +849,13 @@ module.exports.fetchTrendingFeeds = BigPromise(async (req, res) => {
                 alltags = alltags.concat(feed.tags);
         });
 
-        const [users, feedLikes, saves, tags, location] = await Promise.all([
+        const [users, feedLikes, saves, tags, location, following] = await Promise.all([
             Users.find({ _id: { $in: feedUserIds } }, { _id: 1, username: 1, occupation: 1, profile_pic: 1 }),
             FeedLikes.find({ liked_by: req.user._id, feed_id: { $in: feedIds } }),
             FeedSaves.find({ saved_by: req.user._id, feed_id: { $in: feedIds } }),
             Hashtag.find({ _id: { $in: alltags } }),
             Location.find({ _id: { $in: feedsWithUserDetails.map(feed => feed.location) } }),
-        ]);
+            (await Follow.find({ followed_by: req.user._id, is_confirmed: true })).map((follow) => follow.followed_to.toString()),]);
 
         const feedLikesMap = new Map(feedLikes.map((like) => [like.feed_id.toString(), true]));
         const savedFeedsMap = new Map(saves.map((savedFeed) => [savedFeed.feed_id.toString(), true]));
@@ -869,7 +869,7 @@ module.exports.fetchTrendingFeeds = BigPromise(async (req, res) => {
             feed.isLiked = feedLikesMap.get(feed._id.toString()) || false;
             feed.isSaved = savedFeedsMap.get(feed._id.toString()) || false;
             const user = userMap.get(feed.user_id.toString());
-            feed.user = { ...user.toObject(), isOwner: user._id.toString() === _id };
+            feed.user = { ...user.toObject(), isOwner: user._id.toString() === _id, isFollowing: following.includes(feed.user_id.toString()) };
             feed.tags = feed.tags.map(tag => tagsMap.get(tag.toString()));
             feed.location = feed.location == null ? null : locationMap.get(feed.location.toString());
 
