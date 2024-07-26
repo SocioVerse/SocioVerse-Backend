@@ -37,6 +37,7 @@ const {
     unhideStory,
     getRoomId,
     getRecentRoomsInfo,
+    unreadMessageCount,
     fetchAllStoryHiddenUsers,
     changePassword,
     removeFollowers,
@@ -95,6 +96,7 @@ router.route("/verify-otp").get(verifyEmailOtp);
 router.route("/get-room-info-by-user").get(auth, getRoomInfoByUser);
 router.route("/create-room").post(auth, createRoom);
 router.route("/all-recent-chats").get(auth, allRecentChats);
+router.route("/unread-message-count").get(auth, unreadMessageCount);
 
 //story apis
 router.route("/fetch-all-stories").get(auth, fetchAllStories);

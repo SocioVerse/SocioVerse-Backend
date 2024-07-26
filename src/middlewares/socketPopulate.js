@@ -2,13 +2,13 @@ const { ErrorHandler } = require("../helpers/customResponse");
 const bigPromise = require("./bigPromise");
 const JwtService = require("../utils/jwtService");
 const User = require("../models/usersModel");
-module.exports.socketPopulate = bigPromise(async (req, res, next) => {
+module.exports.socketPopulate = bigPromise(async (req, next) => {
     // get header
     const userId = req.query.userId;
     console.log(userId);
 
     if (!userId) {
-        return ErrorHandler(res, 400, "unAuthorized");
+        return Error('Authentication error');
     }
 
 
@@ -27,6 +27,6 @@ module.exports.socketPopulate = bigPromise(async (req, res, next) => {
         next();
     } catch (err) {
         console.log(err);
-        return ErrorHandler(res, 401, "unAuthorized");
+        return Error('Authentication error');
     }
 });

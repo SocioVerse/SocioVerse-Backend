@@ -1902,6 +1902,29 @@ module.exports.getRecentRoomsInfo = BigPromise(async (req, res) => {
   }
 });
 
+module.exports.unreadMessageCount = BigPromise(async (req, res) => {
+  try {
+
+    const rooms = await Room.find({
+      participants: { $in: [req.user._id] },
+    }).populate("lastMessage");
+    // check last message of each room
+    let unreadMessageCount = 0;
+    for (const room of rooms) {
+      if (room.lastMessage == null) {
+        continue;
+      }
+      if (room.lastMessage.seenBy.includes(req.user._id))
+        continue;
+      unreadMessageCount++;
+    }
+    ControllerResponse(res, 200, unreadMessageCount);
+  } catch (err) {
+    console.error(err);
+    ErrorHandler(res, 500, "Internal Server Error");
+  }
+});
+
 
 module.exports.getRoomId = BigPromise(async (req, res) => {
   try {
