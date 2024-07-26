@@ -157,6 +157,25 @@ module.exports.toggleStoryLike = BigPromise(async (req, res) => {
             await Story.findByIdAndUpdate(story_id, {
                 $inc: { like_count: 1 },
             });
+            const targetUserId = await Story.findById(story_id,);
+            const user = await Users.findById(req.user._id);
+            const fcmTokens = await DeviceFCMToken.find(
+                {
+                    $and: [
+                        { user_id: targetUserId.user_id },
+                        { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } },
+                    ],
+                },
+                { fcm_token: 1 }
+            );
+            console.log(fcmTokens);
+            if (fcmTokens != null && fcmTokens.length > 0)
+                await FirebaseAdminService.sendNotifications({
+                    fcmTokens: fcmTokens.map((fcmToken) => fcmToken.fcm_token),
+                    notification: "New Story Like",
+                    body: user.username + " just liked your story",
+                    type: "story-like",
+                });
         }
 
         ControllerResponse(res, 200, "Story Like Toggled Successfully");

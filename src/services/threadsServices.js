@@ -297,11 +297,13 @@ module.exports.createComment = BigPromise(async (req, res) => {
       ]
     }, { fcm_token: 1, user_id: 1 });
     console.log(fcmTokens);
-    if (fcmTokens.length > 0)
+    if (fcmTokens != null && fcmTokens.length > 0)
       await FirebaseAdminService.sendNotifications({
         fcmTokens: fcmTokens.map(
           (fcmToken) => fcmToken.fcm_token
-        ), notification: "New Comment", body: user.username + " just commented your thread"
+        ), notification: "New Comment", body: user.username + " just commented your thread",
+        type: "activity",
+        activityType: thread.isBase == true ? 'Threads' : 'Thread Comments'
       });
 
 
@@ -467,19 +469,22 @@ module.exports.toggleThreadLike = BigPromise(async (req, res) => {
       });
       await newLike.save();
       thread.like_count++;
-      // const fcmTokens = await DeviceFCMToken.find({
-      //   $and: [
-      //     { user_id: thread.user_id },
-      //     { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-      //   ]
-      // }, { fcm_token: 1, user_id: 1 });
-      // console.log(fcmTokens);
-      // if (fcmTokens.length > 0)
-      //   await FirebaseAdminService.sendNotifications({
-      //     fcmTokens: fcmTokens.map(
-      //       (fcmToken) => fcmToken.fcm_token
-      //     ), notification: "New Like", body: user.username + " just liked your thread"
-      //   });
+      const fcmTokens = await DeviceFCMToken.find({
+        $and: [
+          { user_id: thread.user_id },
+          { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+        ]
+      }, { fcm_token: 1, user_id: 1 });
+      console.log(fcmTokens);
+      if (fcmTokens != null && fcmTokens.length > 0) {
+        await FirebaseAdminService.sendNotifications({
+          fcmTokens: fcmTokens.map(
+            (fcmToken) => fcmToken.fcm_token
+          ), notification: "New Like", body: user.username + " just liked your thread",
+          type: "activity",
+          activityType: thread.isBase == true ? 'Threads' : 'Thread Comments'
+        });
+      }
     }
 
     await thread.save();
