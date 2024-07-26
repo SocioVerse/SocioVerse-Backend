@@ -673,6 +673,8 @@ module.exports.toggleRepostThread = BigPromise(async (req, res) => {
         fcmTokens: fcmTokens.map((fcmToken) => fcmToken.fcm_token),
         notification: "Repost",
         body: user.username + " just reposted your thread",
+        type: "repost",
+        userId: req.user._id.toString(),
       });
 
     ControllerResponse(res, 200, "Thread Reposted");
@@ -961,11 +963,12 @@ module.exports.createFollowRequest = BigPromise(async (req, res) => {
         { fcm_token: 1 }
       );
       console.log(fcmTokens);
-      if (fcmTokens.length > 0)
+      if (fcmTokens != null && fcmTokens.length > 0)
         await FirebaseAdminService.sendNotifications({
           fcmTokens: fcmTokens.map((fcmToken) => fcmToken.fcm_token),
           notification: "New Request",
           body: user.username + " just send you a follow request",
+          type: "follow-request",
         });
       ControllerResponse(res, 200, "Follow Request Sent Succesfully");
     }
@@ -1037,19 +1040,21 @@ module.exports.confirmFollowRequest = BigPromise(async (req, res) => {
     );
     await Request.save();
     const user = await Users.findById(requestingUserId);
-    // const fcmTokens = await DeviceFCMToken.find({
-    //   $and: [
-    //     { user_id: targetUserId },
-    //     { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-    //   ]
-    // }, { fcm_token: 1 });
-    // console.log(fcmTokens);
-    // if (fcmTokens.length > 0)
-    //   await FirebaseAdminService.sendNotifications({
-    //     fcmTokens: fcmTokens.map(
-    //       (fcmToken) => fcmToken.fcm_token
-    //     ), notification: "Request Accepted", body: user.username + " just accepted your follow request"
-    //   });
+    const fcmTokens = await DeviceFCMToken.find({
+      $and: [
+        { user_id: targetUserId },
+        { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+      ]
+    }, { fcm_token: 1 });
+    console.log(fcmTokens);
+    if (fcmTokens != null && fcmTokens.length > 0)
+      await FirebaseAdminService.sendNotifications({
+        fcmTokens: fcmTokens.map(
+          (fcmToken) => fcmToken.fcm_token
+        ), notification: "Request Accepted", body: user.username + " just accepted your follow request",
+        type: "follow-request-accepted",
+        userId: req.user._id.toString(),
+      });
 
     ControllerResponse(res, 200, "Follow Request Accepted");
   } catch (err) {

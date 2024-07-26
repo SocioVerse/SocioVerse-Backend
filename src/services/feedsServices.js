@@ -111,7 +111,23 @@ module.exports.createFeed = BigPromise(async (req, res) => {
         });
         //update post count
         Users.findByIdAndUpdate(req.user._id, { $inc: { post_count: 1 } }, { new: true }).exec();
-
+        if (mentionsIds.length > 0) {
+            const fcmTokens = await DeviceFCMToken.find({
+                $and: [
+                    { user_id: { $in: mentionsIds } },
+                    { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+                ]
+            }, { fcm_token: 1, user_id: 1 });
+            if (fcmTokens != null && fcmTokens.length > 0)
+                await FirebaseAdminService.sendNotifications({
+                    fcmTokens: fcmTokens.map(
+                        (fcmToken) => fcmToken.fcm_token
+                    ),
+                    notification: "New Mention",
+                    body: req.user.username + " just mentioned you in a feed",
+                    type: "mentions",
+                });
+        }
 
         ControllerResponse(res, 200, {});
     } catch (err) {
@@ -224,19 +240,23 @@ module.exports.createFeedComment = BigPromise(async (req, res) => {
             createdAt: newComment.createdAt,
         };
 
-        // const fcmTokens = await DeviceFCMToken.find({
-        //     $and: [
-        //         { user_id: feed.user_id },
-        //         { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-        //     ]
-        // }, { fcm_token: 1, user_id: 1 });
-        // console.log(fcmTokens);
-        // if (fcmTokens.length > 0)
-        //     await FirebaseAdminService.sendNotifications({
-        //         fcmTokens: fcmTokens.map(
-        //             (fcmToken) => fcmToken.fcm_token
-        //         ), notification: "New Comment", body: req.user.username + " just commented on your feed"
-        //     });
+        const fcmTokens = await DeviceFCMToken.find({
+            $and: [
+                { user_id: feed.user_id },
+                { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+            ]
+        }, { fcm_token: 1, user_id: 1 });
+
+        if (fcmTokens != null && fcmTokens.length > 0)
+            await FirebaseAdminService.sendNotifications({
+                fcmTokens: fcmTokens.map(
+                    (fcmToken) => fcmToken.fcm_token
+                ),
+                notification: "New Comment",
+                body: user.username + " just commented on your feed",
+                type: "activity",
+                activityType: 'Feeds'
+            });
 
 
 
@@ -328,6 +348,26 @@ module.exports.createCommentReply = BigPromise(async (req, res) => {
             createdAt: commentReply.createdAt,
         };
 
+        // send notification
+        const fcmTokens = await DeviceFCMToken.find({
+            $and: [
+                { user_id: parentComment.user_id },
+                { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+            ]
+        }, { fcm_token: 1, user_id: 1 });
+
+        if (fcmTokens != null && fcmTokens.length > 0)
+            await FirebaseAdminService.sendNotifications({
+                fcmTokens: fcmTokens.map(
+                    (fcmToken) => fcmToken.fcm_token
+                ),
+                notification: "New Comment Reply",
+                body: user.username + " just replied to your comment",
+                type: "activity",
+                activityType: 'Feed Comments'
+            });
+
+
         ControllerResponse(res, 200, data);
     } catch (err) {
         console.error(err);
@@ -356,6 +396,26 @@ module.exports.toggleFeedCommentLike = BigPromise(async (req, res) => {
             await newLike.save();
             comment.like_count++;
             await comment.save();
+
+            const user = await Users.findById(req.user._id);
+            const fcmTokens = await DeviceFCMToken.find({
+                $and: [
+                    { user_id: comment.user_id },
+                    { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+                ]
+            }, { fcm_token: 1, user_id: 1 });
+
+            if (fcmTokens != null && fcmTokens.length > 0)
+                await FirebaseAdminService.sendNotifications({
+                    fcmTokens: fcmTokens.map(
+                        (fcmToken) => fcmToken.fcm_token
+                    ),
+                    notification: "New Comment Like",
+                    body: user.username + " just liked your comment",
+                    type: "activity",
+                    activityType: 'Feed Comments'
+                });
+
         }
 
         ControllerResponse(res, 200, "Like/Dislike toggled successfully");
@@ -447,25 +507,35 @@ module.exports.toggleFeedLike = BigPromise(async (req, res) => {
             liked_by: likedBy,
         });
 
+
+
+        console.log("fcmTokens", existingLike);
         if (!existingLike) {
+            console.log("fcmTokens--------1");
             const newLike = new FeedLikes({
                 feed_id: feedId,
                 liked_by: likedBy,
             });
             await newLike.save();
-            // const fcmTokens = await DeviceFCMToken.find({
-            //     $and: [
-            //         { user_id: feed.user_id },
-            //         { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
-            //     ]
-            // }, { fcm_token: 1, user_id: 1 });
-            // console.log(fcmTokens);
-            // if (fcmTokens.length > 0)
-            //     await FirebaseAdminService.sendNotifications({
-            //         fcmTokens: fcmTokens.map(
-            //             (fcmToken) => fcmToken.fcm_token
-            //         ), notification: "New Like", body: user.username + " just liked your feed"
-            //     });
+            const feed = await Feed.findById(feedId);
+            const fcmTokens = await DeviceFCMToken.find({
+                $and: [
+                    { user_id: feed.user_id },
+                    { user_id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }
+                ]
+            }, { fcm_token: 1, user_id: 1 });
+            console.log(fcmTokens, "fcmTokens");
+            if (fcmTokens != null && fcmTokens.length > 0)
+                await FirebaseAdminService.sendNotifications({
+                    fcmTokens: fcmTokens.map(
+                        (fcmToken) => fcmToken.fcm_token
+                    ), notification: "New Like", body: user.username + " just liked your feed",
+                    type: "activity",
+                    activityType: 'Feeds'
+                });
+        } else {
+            console.log("fcmTokens--------2");
+            existingLike.deleteOne();
         }
 
         // update feed like count

@@ -1,4 +1,5 @@
 const admin = require('firebase-admin');
+const DeviceFCMToken = require('../models/deviceFcmTocken');
 function extractEncodedStringFromURL(url) {
     const parsedURL = new URL(url);
     const path = parsedURL.pathname; // Get the path part of the URL
@@ -11,9 +12,10 @@ function extractEncodedStringFromURL(url) {
 
     return decodedString;
 }
+
 class FirebaseAdminService {
 
-    static async sendNotifications({ fcmTokens, notification, body }) {
+    static async sendNotifications({ fcmTokens, notification, body, type = '', activityType = '', userId = '' }) {
         const messages = [];
 
         fcmTokens.forEach((token) => {
@@ -23,23 +25,32 @@ class FirebaseAdminService {
                     body: body,
                 },
                 token: token,
+                data: {
+                    type: type,
+                    activityType: activityType,
+                    userId: userId
+                }
             };
 
             messages.push(message);
         });
+        console.log(fcmTokens);
 
-        try {
-            const sendPromises = messages.map(async (message) => {
+        for (const message of messages) {
+            try {
+
                 await admin.messaging().send(message);
-                console.log('Successfully sent message to token:', message.token);
-            });
-
-            await Promise.all(sendPromises);
-            console.log('All messages sent successfully');
-        } catch (error) {
-            console.error('Error sending messages:', error);
-            throw error;
+            } catch (error) {
+                if (
+                    error.code === "messaging/registration-token-not-registered" ||
+                    error.code === "messaging/invalid-argument"
+                ) {
+                    await DeviceFCMToken.findOneAndDelete({ token: message.token });
+                }
+            }
         }
+        console.log('All messages sent successfully');
+
     }
 
 
