@@ -693,12 +693,27 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       is_confirmed: true,
     }).distinct("followed_to");
 
+    // reposted threads
+    let repostedThreads = await RepostedThread.find({
+      reposted_by: { $in: followingUsers },
+    }).populate('thread_id').sort({ createdAt: -1 });
+    console.log(repostedThreads);
+
+
+
     // Fetch threads with comments
     const threadsWithUserDetails = await Thread.aggregate([
       {
         $match: {
-          user_id: { $in: followingUsers },
-          isBase: true,
+          $or: [{
+            user_id: { $in: followingUsers },
+            isBase: true,
+          },
+          {
+            _id: { $in: repostedThreads.map((repost) => repost.thread_id._id) },
+            isBase: true,
+          }
+          ]
         },
       },
       {
@@ -731,6 +746,8 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       },
     ]);
 
+
+
     // Fetch comment users' details and map by ID
     const commentUserIds = new Set();
     threadsWithUserDetails.forEach((thread) => {
@@ -755,9 +772,23 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
 
     const threadIds = threadsWithUserDetails.map((thread) => thread._id);
 
+    const repostedThreadsUserIds = repostedThreads.map((repost) => repost.thread_id.user_id);
+    console.log(repostedThreadsUserIds);
+
     const [users, threadLikes, reposts, saves] = await Promise.all([
       Users.find(
-        { _id: { $in: threadUserIds } },
+        {
+
+          $or: [
+            { _id: { $in: followingUsers } },
+            {
+              _id: {
+                $in: repostedThreadsUserIds
+              }
+            }
+          ]
+
+        },
         { _id: 1, username: 1, occupation: 1, profile_pic: 1 }
       ),
       ThreadLikes.find({
@@ -773,7 +804,7 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
         thread_id: { $in: threadIds },
       }),
     ]);
-
+    console.log("users", users);
     const threadLikesMap = new Map(
       threadLikes.map((like) => [like.thread_id.toString(), true])
     );
@@ -790,6 +821,25 @@ module.exports.fetchFollowingThreads = BigPromise(async (req, res) => {
       thread.isReposted = repostsMap.get(thread._id.toString()) || false;
       thread.isLiked = threadLikesMap.get(thread._id.toString()) || false;
       thread.isSaved = savedThreadsMap.get(thread._id.toString()) || false;
+      thread.isRepostedByUser = repostedThreads.some(
+        (repost) => repost.thread_id._id.toString() === thread._id.toString()
+      );
+      if (thread.isRepostedByUser) {
+        const repostIndex = repostedThreads.findIndex(
+          (repost) => repost.thread_id._id.toString() === thread._id.toString()
+        );
+        console.log(repostIndex, "repostIndex");
+        if (repostIndex > -1) {
+
+          const repost = repostedThreads[repostIndex];
+          const repostedBy = userMap.get(repost.reposted_by.toString());
+          thread.repostedBy = repostedBy;
+
+          console.log(thread.repostedBy, "repostedBy");
+          // remove repostedIndex from repostedThreads
+          repostedThreads.splice(repostIndex, 1);
+        }
+      }
       const user = userMap.get(thread.user_id.toString());
       thread.user = {
         ...user.toObject(),
@@ -1916,6 +1966,7 @@ module.exports.unreadMessageCount = BigPromise(async (req, res) => {
         continue;
       unreadMessageCount++;
     }
+    console.log(unreadMessageCount);
     ControllerResponse(res, 200, unreadMessageCount);
   } catch (err) {
     console.error(err);
