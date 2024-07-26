@@ -1323,16 +1323,13 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
     const userId = req.query.userId ?? req.user._id;
     const repostedThreadsIds = await RepostedThread.find({
       reposted_by: userId,
-    }).select("thread_id");
+    }).sort({ createdAt: -1 });
 
     const threadsWithUserDetails = await Thread.aggregate([
       {
         $match: {
           _id: { $in: repostedThreadsIds.map((thread) => thread.thread_id) },
         },
-      },
-      {
-        $sort: { createdAt: -1 },
       },
       {
         $lookup: {
@@ -1414,6 +1411,7 @@ module.exports.fetchRepostedThread = BigPromise(async (req, res) => {
       thread.isLiked = !!threadLikesMap.get(thread._id.toString());
       thread.isSaved = !!savedThreadsMap.get(thread._id.toString());
       thread.user = user;
+      thread.createdAt = repostedThreadsIds.find(threadId => threadId.thread_id.toString() == thread._id.toString()).createdAt;
       thread.commentUsers = thread.latestComments.map((comment) => ({
         _id: comment.user_id,
         profile_pic:
