@@ -16,7 +16,7 @@ const initializeSocketIO = (httpServer) => {
     const ioUse = async (socket, next) => {
         try {
             console.log(socket.handshake);
-            await socketPopulate(socket.handshake, {}, next);
+            await socketPopulate(socket.handshake, next);
             console.log(socket.handshake.user);
         } catch (error) {
             console.log(error);

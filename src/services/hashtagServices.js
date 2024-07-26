@@ -5,15 +5,6 @@ const {
 const BigPromise = require("../middlewares/bigPromise");
 const Users = require("../models/usersModel");
 const Feed = require("../models/feedModel");
-const Hashtag = require("../models/hashtagModel");
-const Location = require("../models/locationModel");
-const FeedLikes = require("../models/feedLikesModel");
-const FeedSaves = require("../models/feedSavesModel");
-const Follow = require("../models/follows");
-const FirebaseAdminService = require("../utils/adminFireBaseService");
-const DeviceFCMToken = require("../models/deviceFcmTocken");
-const axios = require('axios');
-const mongoose = require('mongoose');
 
 module.exports.fetchHashtagsFeeds = BigPromise(async (req, res) => {
     try {

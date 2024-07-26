@@ -110,6 +110,7 @@ module.exports.createFeed = BigPromise(async (req, res) => {
             allow_save: allow_save,
         });
         //update post count
+        const user = await Users.findById(req.user._id);
         Users.findByIdAndUpdate(req.user._id, { $inc: { post_count: 1 } }, { new: true }).exec();
         if (mentionsIds.length > 0) {
             const fcmTokens = await DeviceFCMToken.find({
@@ -124,7 +125,7 @@ module.exports.createFeed = BigPromise(async (req, res) => {
                         (fcmToken) => fcmToken.fcm_token
                     ),
                     notification: "New Mention",
-                    body: req.user.username + " just mentioned you in a feed",
+                    body: user.username + " just mentioned you in a feed",
                     type: "mentions",
                 });
         }
