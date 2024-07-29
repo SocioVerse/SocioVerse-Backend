@@ -32,7 +32,8 @@ const Feed = require("../models/feedModel");
 const Hashtag = require("../models/hashtagModel");
 const Location = require("../models/locationModel");
 const e = require("express");
-const { default: axios } = require("axios");
+const axios = require("axios");
+const { json, urlencoded } = require("body-parser");
 
 function checkEmail(email) {
   const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -79,7 +80,7 @@ module.exports.signup = BigPromise(async (req, res) => {
       country,
       dob: Date.parse(dob),
       profile_pic,
-      face_image_dataset: face_image_dataset ?? [],
+      face_image_dataset: face_image_dataset,
     });
     user.save();
     const access_token = jwt.sign({
@@ -273,6 +274,16 @@ module.exports.updateUserProfile = BigPromise(async (req, res) => {
     await Users.findByIdAndUpdate(_id, updateData);
 
     await user.save();
+    if (updateData.face_image_dataset != null) {
+      response = await axios
+        .post(
+          `https://j007acky-facerecog.hf.space/user/`
+          , {
+            image_url: user.face_image_dataset,
+            user_name: user._id,
+          }
+        );
+    }
     delete user._doc.password;
     return ControllerResponse(res, 200, {
       message: "Profile updated successfully",
@@ -517,17 +528,92 @@ module.exports.searchAPI = BigPromise(async (req, res) => {
 
 module.exports.searchUserByFace = BigPromise(async (req, res) => {
   try {
-    const { faceImage } = req.query;
+    const { faceImage } = req.body;
     console.log(faceImage);
+    const request = {
+      image_url: decodeURI(faceImage),
+    };
     const response = await axios
       .post(
-        `https://j007acky-facerecog.hf.space/`
-        , {
-          image_url: faceImage,
-        }
-      );
+        "https://j007acky-facerecog.hf.space/"
+        , request
+      ).catch((err) => {
+        console.log(err);
+        return null;
+      });
+    // console.log("response ", response);
 
-    ControllerResponse(res, 200, response.data);
+    if (response == null || response.data == null || response.data.user_id[0] == "unable to detect") {
+      return ControllerResponse(res, 200, []);
+    }
+    // string to object id
+
+    const responseUsers = response.data.user_id.map((id) => new mongoose.Types.ObjectId(id));
+    const pipeline = [
+      {
+        $match: {
+          $and: [
+            { _id: { $in: responseUsers } },
+            { _id: { $ne: new mongoose.Types.ObjectId(req.user._id) } }, // Exclude the logged-in user
+          ]
+        },
+      },
+      {
+        $lookup: {
+          from: "follows",
+          let: { userId: "$_id" },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: [
+                        "$followed_by",
+                        new mongoose.Types.ObjectId(req.user._id),
+                      ],
+                    },
+                    { $eq: ["$followed_to", "$$userId"] },
+                  ],
+                },
+              },
+            },
+          ],
+          as: "followData",
+        },
+      },
+      {
+        $project: {
+          username: 1,
+          name: 1,
+          profile_pic: 1,
+          occupation: 1,
+          email: 1,
+          state: {
+            $cond: {
+              if: { $eq: [{ $size: "$followData" }, 0] },
+              then: 0, // Not followed
+              else: {
+                $cond: {
+                  if: {
+                    $eq: [
+                      { $arrayElemAt: ["$followData.is_confirmed", 0] },
+                      true,
+                    ],
+                  },
+                  then: 2, // Following and confirmed
+                  else: 1, // Sent request
+                },
+              },
+            },
+          },
+        },
+      },
+    ];
+
+    const users = await Users.aggregate(pipeline);
+    console.log(users);
+    ControllerResponse(res, 200, users);
   } catch (error) {
     console.error(error);
     ErrorHandler(res, 500, "Internal Server Error");
