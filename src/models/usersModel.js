@@ -68,14 +68,10 @@ const userSchema = new Schema(
       default: 0,
     },
 
-    face_image_dataset: [
-      {
-        type: String,
-        trim: true,
-
-        default: [],
-      },
-    ],
+    face_image_dataset: {
+      type: String,
+      default: null,
+    },
     bio: {
       type: String,
       trim: true,

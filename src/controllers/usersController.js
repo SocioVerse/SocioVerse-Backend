@@ -77,7 +77,7 @@ router.route("/remove-follower").delete(auth, removeFollowers);
 
 //search api
 router.route("/search-user").get(auth, searchAPI);
-router.route("/search-user-by-face").get(auth, searchUserByFace);
+router.route("/search-user-by-face").post(auth, searchUserByFace);
 router.route("/search-location").get(auth, searchLocation);
 router.route("/search-hashtags").get(auth, searchHashtags);
 router.route("/search-metadata").get(auth, searchMetadata);
