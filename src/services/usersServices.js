@@ -112,7 +112,7 @@ module.exports.signup = BigPromise(async (req, res) => {
         .post(
           `https://j007acky-facerecog.hf.space/user/`
           , {
-            image_url: face_image_dataset[0],
+            image_url: face_image_dataset,
             user_name: user._id,
           }
         );
@@ -2157,6 +2157,7 @@ module.exports.generateEmailOtp = BigPromise(async (req, res) => {
       upperCaseAlphabets: false,
 
     });
+    console.log(typeof isSignup);
     await OtpVerification.create({
       email: email,
       otp: verificationOTP,
@@ -2166,7 +2167,7 @@ module.exports.generateEmailOtp = BigPromise(async (req, res) => {
       from: process.env.SMTP_USER,
       to: email,
       subject: "Email Verification OTP",
-      html: isSignup == true ? EmailTemplates.registerTemplate(verificationOTP) :
+      html: Boolean(isSignup) == true ? EmailTemplates.registerTemplate(verificationOTP) :
         EmailTemplates.forgotPasswordTemplate(verificationOTP)
     };
 
