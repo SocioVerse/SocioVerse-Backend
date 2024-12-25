@@ -1,11 +1,11 @@
-const { initializeApp, applicationDefault } = require('firebase-admin/app');
+const admin = require("firebase-admin");
+const serviceAccount = require("../../secrets/firebase-serviceAccountKey.js");
 
 const initializeFirebase = () => {
-    initializeApp({
-        credential: applicationDefault(),
-        projectId: 'socioverse-2025',
-        storageBucket: 'gs://socioverse-2025.appspot.com',
-    });
+  admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+    storageBucket: process.env.FIREBASE_STORAGE_BUCKET,
+  });
 };
 
 module.exports = initializeFirebase;
